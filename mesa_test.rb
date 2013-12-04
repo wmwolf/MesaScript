@@ -27,6 +27,8 @@ masses.each do |mass|
   
     kipp_win_flag true
     grid1_win_flag true
+    
+    xa_central_lower_limit_species 1, 'h1'
   
     # No write-out functionality yet, but would be really easy to implement.
     puts self

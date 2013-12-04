@@ -22,6 +22,8 @@ class Inlist
   # redone manually by the Inlist.get_data command.
   @have_data = false
   
+  @already_defined_methods = []
+  
   # Set up interface to access/change customizable inlist initialization data.
   class << self
     attr_accessor :namelists, :have_data, :defaults_paths, :defaults_names
@@ -36,20 +38,47 @@ class Inlist
     end
     @inlist_data.each_value do |namelist_data|
       namelist_data.each do |datum|
-        define_method(datum.name) do |*args|
-          value = args[0] || datum.default
-          name = datum.name
-          type = datum.type
-          self[datum.namelist][datum.order] =  "  " + datum.name + ' = ' +
-                                  Inlist.parse_input(name, value, type) + "\n"
+        if datum.name =~ /\(/
+          Inlist.make_parentheses_method(datum)
+        else
+          Inlist.make_regular_method(datum)
         end
-        alias_method datum.name.downcase.to_sym, datum.name.to_sym
-        alias_method (datum.name + '=').to_sym, datum.name.to_sym
-        alias_method (datum.name.downcase + '=').to_sym, datum.name.to_sym
       end
     end
     Inlist.have_data = true
   end
+  
+  def self.make_parentheses_method(datum)
+    name = datum.name
+    base_name = name[0...name.index('(')]
+    return nil if @already_defined_methods.index(base_name)
+    default_entry = name[(name.index('(') + 1)...name.index(')')]
+    define_method(base_name) do |*args|
+      value_1 = args[0] || default_entry
+      value_2 = args[1] || datum.default
+      self[datum.namelist][datum.order] = self[datum.namelist][datum.order] +
+        "  " + base_name + '(' + value_1.to_s + ') = ' + 
+        Inlist.parse_input(base_name, value_2, datum.type) + "\n"
+    end
+    alias_method base_name.downcase.to_sym, base_name.to_sym
+    @already_defined_methods << base_name
+  end
+  
+  def self.make_regular_method(datum)
+    define_method(datum.name) do |*args|
+      value = args[0] || datum.default
+      name = datum.name
+      type = datum.type
+      self[datum.namelist][datum.order] =  "  " + datum.name + ' = ' +
+                              Inlist.parse_input(name, value, type) + "\n"
+    end
+    alias_method name.downcase.to_sym, name.to_sym
+    alias_method (name + '=').to_sym, name.to_sym
+    alias_method (datum.name.downcase + '=').to_sym, datum.name.to_sym
+    @already_defined_methods << name
+    puts "whoopsie poopsies!" unless defined?(name.to_sym)
+  end
+    
   
   # Ensure provided value's data type matches expected data type. Then convert
   # to string for printing to an inlist. If value is a string, change nothing 
@@ -161,7 +190,7 @@ class Inlist
     Inlist.get_data unless Inlist.have_data?
     @data = {}
     Inlist.namelists.each do |namelist|
-      @data[namelist] = Array.new(Inlist.inlist_data[namelist].size)
+      @data[namelist] = Array.new(Inlist.inlist_data[namelist].size, '')
     end
   end
   
