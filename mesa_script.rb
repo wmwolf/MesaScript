@@ -1,8 +1,7 @@
 InlistItem = Struct.new(:name, :type, :default, :namelist, :order)
 
 class Inlist
-  
-  
+    
   # Establish class instance variables 
   # Different namelists can be added or subtracted if MESA should change or 
   # proprietary inlists are required
@@ -65,18 +64,17 @@ class Inlist
   end
   
   def self.make_regular_method(datum)
+    name = datum.name
+    type = datum.type
     define_method(datum.name) do |*args|
       value = args[0] || datum.default
-      name = datum.name
-      type = datum.type
       self[datum.namelist][datum.order] =  "  " + datum.name + ' = ' +
                               Inlist.parse_input(name, value, type) + "\n"
     end
     alias_method name.downcase.to_sym, name.to_sym
-    alias_method (name + '=').to_sym, name.to_sym
-    alias_method (datum.name.downcase + '=').to_sym, datum.name.to_sym
+    # alias_method (name + '=').to_sym, name.to_sym
+    # alias_method (datum.name.downcase + '=').to_sym, datum.name.to_sym
     @already_defined_methods << name
-    puts "whoopsie poopsies!" unless defined?(name.to_sym)
   end
     
   
