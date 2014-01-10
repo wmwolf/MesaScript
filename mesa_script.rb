@@ -67,7 +67,11 @@ class Inlist
     name = datum.name
     type = datum.type
     define_method(datum.name) do |*args|
-      value = args[0] || datum.default
+      if args[0].nil?
+        value = datum.default
+      else 
+        value = args[0]
+      end
       self[datum.namelist][datum.order] =  "  " + datum.name + ' = ' +
                               Inlist.parse_input(name, value, type) + "\n"
     end
@@ -91,9 +95,9 @@ class Inlist
         raise "Invalid value for namelist item #{name}: #{value}. Use " +
         "'.true.', '.false.', or a Ruby boolean (true/false)."
       end
-      if value == true
+      if value.class == TrueClass
         return '.true.'
-      elsif value == false
+      elsif value.class == FalseClass
         return '.false.'
       else
         raise "Error converting value #{value} of #{name} to a boolean."
