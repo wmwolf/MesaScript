@@ -1,6 +1,12 @@
 MesaScript
 ==========
 
+###MESA Requirement!
+In its current state, MesaScript requires MESA rev. 5596 or above. This is due
+to a sensitivity to where the `'.inc'` files are stored on earlier versions. If
+there is demand for MesaScript for earlier revisions, I will look into making
+it backward compatible.
+
 ###The Short Short Version
 To get up and running fast, skip to installation, then try and use the included
 sample file, `sample.rb` (via running `ruby sample.rb` in the command line). The
