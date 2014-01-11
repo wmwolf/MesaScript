@@ -6,23 +6,31 @@ class Inlist
   
   @inlist_data = {}
   # Different namelists can be added or subtracted if MESA should change or 
-  # proprietary inlists are required
+  # proprietary inlists are required. Later hashes should be edited in a 
+  # similar way to get the desired behavior for additional namelists.
+  
+  #################### ADD NEW NAMELISTS HERE ####################
   @namelists = %w{ star_job controls pgstar }
+  ################## POINT TO .INC FILES HERE ####################
   @nt_files = { 
-                'star_job' => 'star_job_controls',
-                'controls' => 'star_controls',
-                'pgstar' => 'pgstar_controls'
+                'star_job' => 'star_job_controls.inc',
+                'controls' => 'star_controls.inc',
+                'pgstar'   => 'pgstar_controls.inc'
               }
+  # User can specify a custom name for a namelist defaults file. The default
+  # is simply the namelist name followed by '.defaults'
+  
+  ################ POINT TO .DEFAULTS FILES HERE #################
+  @d_files = {}
 
   # User can add new paths to namelist default files through this hash
+  
+  ############ GIVE PATHS TO .INC AND .DEF FILES HERE ###########
   @nt_paths = Hash.new(ENV['MESA_DIR'] + '/star/private/')
   @d_paths = Hash.new(ENV['MESA_DIR'] + '/star/defaults/')
 
-  # User can specify a custom name for a namelist defaults file. The default
-  # is simply the namelist name followed by '.defaults'
-  @nt_names = {}
-  @d_names = {}
 
+############### NO MORE [SIMPLE] USER-CUSTOMIZABLE FEATURES BELOW ##############
 
   # This tells the class to initialize its structure if it hasn't already.
   # If new namelists are added after an instance is initialized, this can be
@@ -33,16 +41,17 @@ class Inlist
   # Establish class instance variables 
   class << self
     attr_accessor :have_data
-    attr_accessor :namelists, :nt_paths, :d_paths, :nt_names, :inlist_data,
-                  :d_names, :nt_files
+    attr_accessor :namelists, :nt_paths, :d_paths, :inlist_data, :d_files,
+                  :nt_files
   end
   
   # Generate methods for the Inlist class that set various namelist parameters.
   def self.get_data
     Inlist.namelists.each do |namelist|
       @inlist_data[namelist] = Inlist.get_namelist_data(namelist,
-        nt_names[namelist], d_names[namelist])
+        Inlist.nt_files[namelist], Inlist.d_files[namelist])
     end
+    # create methods (interface) for each data category
     @inlist_data.each_value do |namelist_data|
       namelist_data.each do |datum|
         if datum.is_arr?
@@ -52,9 +61,30 @@ class Inlist
         end
       end
     end
+    # don't do this nonsense again unles specifically told to do so
     Inlist.have_data = true
   end
   
+  # Three ways to access array categories. All methods will cause the 
+  # data category to be staged into your inlist, even if you do not change it
+  # Basically, if it appears in your mesascript, it will definitely appear
+  # in your inlist. There is no way to unflag an entry.
+  #
+  # 1. Standard array way like 
+  #        xa_lower_limit_species[1] = 'h1'
+  #    (note square braces, NOT parentheses). Returns new value.
+  #
+  # 2. Just access (and flag), but don't change via array access, like
+  #        xa_lower_limit_species[1]
+  #    (again, note square braces). Returns current value
+  #
+  # 3. No braces method, like
+  #        xa_lower_limit_species()           # flags and returns hash of values
+  #        xa_lower_limit_species             # same, but more ruby-esque
+  #        xa_lower_limit_species(1)          # flags and returns value 1
+  #        xa_lower_limit_species 1           # Same
+  #        xa_lower_limit_species(1, 'h1')    # flags and sets value 1
+  #        xa_lower_limit_species 1, 'h1'     # same
   def self.make_parentheses_method(datum)
     name = datum.name
     define_method(name + '[]=') do|arg1, arg2|
@@ -76,6 +106,26 @@ class Inlist
     alias_method (name.downcase + '[]').to_sym, (name + '[]').to_sym
     alias_method (name.downcase + '[]=').to_sym, (name + '[]=').to_sym
   end
+  
+  # Two ways to access/change scalars. All methods will cause the data category
+  # to be staged into your inlist, even if you do not change the value. 
+  # Basically, if it appears in your mesascript, it will definitely appear in
+  # your inlist. There is no way to unflag an entry.
+  #
+  # 1. Change value, like
+  #        initial_mass(1.0)
+  #        initial_mass 1.0
+  #    This flags the category to go in your inlist and changes the value. There
+  #    is no difference between these two syntaxes (it's built into ruby).
+  #    Returns new value.
+  #
+  # 2. Just access, like
+  #        initial_mass()
+  #        initial_mass
+  #    This flags the category, but does not change the value. Again, both 
+  #    syntaxes are allowd, though the one without parentheses is more
+  #    traditional for ruby (why do you want empty parentheses anyway?). Returns
+  #    current value.
   
   def self.make_regular_method(datum)
     name = datum.name
@@ -129,9 +179,89 @@ class Inlist
       raise "Error parsing value for namelist item #{name}: #{value}."
     end
   end
+  
+  # Converts a standard inlist to its equivalent mesascript formulation.
+  # Comments are preserved and namelist separators are converted to comments.
+  # Note that comments do NOT get put back into the fortran inlist through 
+  # mesascript. Converting an inlist to mesascript and then back again will
+  # clean up and re-order your inlist, but all comments will be lost. All other
+  # information SHOULD remain intact.
+  def self.inlist_to_mesascript(inlist_file, script_file, dbg = false)
+    Inlist.get_data unless Inlist.have_data       # ensure we have inlist data
+    inlist_contents = File.readlines(inlist_file)
+    
+    # make maelist separators comments
+    new_contents = inlist_contents.map do |line|
+      case line
+      when /^\s*&/  then '# ' + line.chomp        # start namelist
+      when /^\s*\// then '# ' + line.chomp        # end namelist
+      else
+        line.sub('!', '#').chomp                  # fix comments
+      end
+    end
+    new_contents.map! do |line|
+      if line =~ /^\s*#/ or line.strip.empty?     # leave comments and blanks
+        result = line
+      else 
+        if dbg
+          puts "parsing line:"
+          puts line
+        end
+        comment_pivot = line.index('#')
+        if comment_pivot
+          command = line[0...comment_pivot]
+          comment = line[comment_pivot..-1].to_s.strip
+        else
+          command = line
+          comment = ''
+        end
+        command =~ /(^\s*)/                       # save leading space
+        leading_space = Regexp.last_match(1)
+        command =~ /(\s*$)/                       # save buffer space
+        buffer_space = Regexp.last_match(1)
+        command.strip!                            # remove white space
+        name, value = command.split('=').map { |datum| datum.strip }
+        if dbg
+          puts "name: #{name}"
+          puts "value: #{value}"
+        end
+        if name =~ /\((\d+)\)/                    # fix array assignments
+          name.sub!('(', '[')
+          name.sub!(')', ']')
+          name = name + ' ='
+        end
+        name.downcase!
+        if value =~ /'*.'/ or value =~ /"*."/
+          result = name + ' ' + value             # leave strings alone
+        elsif %w[.true. .false.].include?(value.downcase)
+          result = name + ' ' + value.downcase.gsub('.', '') # fix booleans
+        elsif value.include?('.') or value.include?('d') or value.include?('e')
+          result = name + ' ' + value.sub('d', 'e')          # fix floats
+        else
+          result = name + ' ' + value             # leave everything else alone
+        end
+        result = leading_space + result + buffer_space + comment
+        if dbg
+          puts "parsed to:"
+          puts result
+          puts ''
+        end
+      end
+      result
+    end
+    File.open(script_file, 'w') do |f|
+      f.puts "require './mesa_script'"
+      f.puts ''
+      f.puts "Inlist.make_inlist('#{File.basename(inlist_file)}') do"
+      new_contents.each { |line| f.puts '  ' + line }
+      f.puts "end"
+    end
+  end
+    
 
   # Create an Inlist object, execute block of commands that presumably populate
-  # the inlist, then write the inlist to a file with the given name.
+  # the inlist, then write the inlist to a file with the given name. This is
+  # the money routine with user-supplied commands in the instance_eval block.
   def self.make_inlist(name = 'inlist', &block)
     inlist = Inlist.new
     inlist.instance_eval(&block)
@@ -144,19 +274,13 @@ class Inlist
     @have_data
   end
   
-  # Reads names and default values for a specified namelist. Assumes namelist
-  # is named "#{namelist}.defaults" or is provided as the second argument. Also
-  # assumes that file is located in Inlist.defaults_paths[namelist].
+  # Reads names and types for a specified namelist from given file (intended
+  # to be of the form of something like star/private/star_controls.inc).
   #
-  # Ignores all blank lines and comment lines, and assumes that all other lines
-  # are of the form NAME = VALUE. Assumes all values are logicals, strings (with
-  # single quotes only), floats (contains a decimal, a d, or a D), or an integer
-  # (just numerals, no decimals or letters). Currently the distincion between
-  # floats and integers is meaningless.
-  #
-  # Returns an array of InlistItem Struct instanc that contain a parameter's
-  # name, type (:bool, :string, :float, or :int), default value (as a string),
-  # the namelist it belongs to, and its relative ordering in that namelist.
+  # Returns an array of InlistItem Struct instances that contain a parameter's
+  # name, type (:bool, :string, :float, :int, or :type), the namelist it
+  # belongs to, and its relative ordering in that namelist. Bogus defaults are
+  # assigned according to the object's type, and the ordering is unknown.
   
   def self.get_namelist_data(namelist, nt_filename = nil, d_filename = nil)
     temp_data = Inlist.get_names_and_types(namelist, nt_filename)
@@ -164,7 +288,7 @@ class Inlist
   end
   
   def self.get_names_and_types(namelist, nt_filename = nil)
-    nt_filename ||= Inlist.nt_files[namelist]+'.inc'
+    nt_filename ||= Inlist.nt_files[namelist]
     nt_full_path = Inlist.nt_paths[namelist] + nt_filename
     raise "Couldn't find file #{nt_filename}" unless File.exists?(nt_full_path) 
     contents = File.readlines(nt_full_path)
@@ -208,6 +332,10 @@ class Inlist
     end
     namelist_data      
   end
+    
+  # Similar to Inlist.get_names_and_types, but takes the output of
+  # Inlist.get_names_and_types and assigns defaults and orders to each item.
+  # Looks for this information in the specified defaults filename.
     
   def self.get_defaults(temp_data, namelist, d_filename = nil, whine = false)
     d_filename ||= namelist + '.defaults'
@@ -298,6 +426,7 @@ class Inlist
     end
   end
 
+  # Zeroes out all staged data and blank lines
   def make_fresh_writelist
     @to_write = {}
     @data.keys.each do |namelist|
@@ -325,29 +454,23 @@ class Inlist
     else
       @to_write[datum.namelist][datum.order] =  "  " + datum.name + ' = ' +
                 Inlist.parse_input(datum.name, datum.value, datum.type) + "\n"
-      # puts "Staged #{name} for output."
     end
   end
-
-  def to_s
-    result = ''
-    namelists.each do |namelist|
-      result += "\n&#{namelist}\n"
-      result += @to_write[namelist].join("")
-      result += "\n/ ! end of #{namelist} namelist\n"
-    end
-    result.sub("\n\n\n", "\n\n")
-  end
-  
+    
+  # Marks a data category so that it can be staged into an inlist
   def flagged
     @data_hash.keys.select { |key| @data_hash[key].flagged }
   end
   
+  # Collects all data categories into a hash of arrays (each array is a
+  # namelist) that is read whenever the inlist is converted to a string
+  # (i.e. when it is printed to a file or the screen).
   def stage_flagged
-    make_fresh_writelist
+    make_fresh_writelist # start from scratch
     
-    flagged.each { |name| stage_namelist_command(name) }
+    flagged.each { |name| stage_namelist_command(name) } # stage each datum
 
+    # blank lines between disparate data
     namelists.each do |namelist|
       @to_write[namelist].each_index do |i|
         next if (i == 0 or i == @to_write[namelist].size - 1)
@@ -359,6 +482,18 @@ class Inlist
       end
     end        
   end
-    
+
+  # Takes the staged data categories and formats them into a string series of 
+  # namelists that are MESA-readable.
+  def to_s
+    result = ''
+    namelists.each do |namelist|
+      result += "\n&#{namelist}\n"
+      result += @to_write[namelist].join("")
+      result += "\n/ ! end of #{namelist} namelist\n"
+    end
+    result.sub("\n\n\n", "\n\n")
+  end
+      
 end
 
