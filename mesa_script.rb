@@ -176,7 +176,7 @@ class Inlist
       puts "WARNING: 'type' values are currently unsupported (regarding #{name}) because your humble author has no idea what they look like in an inlist. You should tell him what to do at wmwolf@physics.ucsb.edu. Your input, #{value}, has been passed through to your inlist verbatim."
       return value.to_s
     else
-      raise "Error parsing value for namelist item #{name}: #{value}."
+      raise "Error parsing value for namelist item #{name}: #{value}. Expected type was #{type}."
     end
   end
   
