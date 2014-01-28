@@ -14,11 +14,11 @@ if ARGV.size == 0 or %w[-h --help].include?(ARGV[0])
   puts "mesascript file to be produced. '.rb' will not be appended, though"
   puts "the resulting file will be a ruby/mesascript file."
   puts ''
-elsif ARGV.size == 2 
+elsif ARGV.size == 2
   source = ARGV[0]
   output = ARGV[1]
 
   Inlist.inlist_to_mesascript(source, output, false)
 else
-  raise "Expected two argumens (received #{ARGV.size}). Enter 'inlist2mesa -h' for help."
+  raise "Expected two arguments (received #{ARGV.size}). Enter 'inlist2mesa -h' for help."
 end
