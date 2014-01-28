@@ -1,4 +1,4 @@
-InlistItem = Struct.new(:name, :type, :value, :namelist, :order, :is_arr?,
+InlistItem = Struct.new(:name, :type, :value, :namelist, :order, :is_arr,
 :flagged)
 
 class Inlist
@@ -54,7 +54,7 @@ class Inlist
     # create methods (interface) for each data category
     @inlist_data.each_value do |namelist_data|
       namelist_data.each do |datum|
-        if datum.is_arr?
+        if datum.is_arr
           Inlist.make_parentheses_method(datum)
         else
           Inlist.make_regular_method(datum)
@@ -444,7 +444,7 @@ class Inlist
   
   def stage_namelist_command(name)
     datum = @data_hash[name]
-    if datum.is_arr?
+    if datum.is_arr
       lines = @data_hash[name].value.keys.map do |key|
         "  " + datum.name + '(' + key.to_s + ')' + ' = ' + 
         Inlist.parse_input(datum.name, datum.value[key], datum.type) + "\n"
