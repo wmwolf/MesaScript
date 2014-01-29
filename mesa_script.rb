@@ -131,7 +131,7 @@ class Inlist
     name = datum.name
     define_method(name) do |*args|
       self.flag_command(name)
-      return self.data_hash[name].value unless args[0]
+      return self.data_hash[name].value if args.empty?
       self.data_hash[name].value = args[0]
     end
     aliases = [(name + '=').to_sym,
