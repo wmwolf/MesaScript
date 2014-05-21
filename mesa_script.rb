@@ -13,9 +13,9 @@ class Inlist
   @namelists = %w{ star_job controls pgstar }
   ################## POINT TO .INC FILES HERE ####################
   @nt_files = {
-                'star_job' => 'star_job_controls.inc',
-                'controls' => 'star_controls.inc',
-                'pgstar'   => 'pgstar_controls.inc'
+                'star_job' => %w{star_job_controls.inc},
+                'controls' => %w{star_controls.inc ctrls_io.f},
+                'pgstar'   => %w{pgstar_controls.inc}
               }
   # User can specify a custom name for a namelist defaults file. The default
   # is simply the namelist name followed by '.defaults'
@@ -176,7 +176,8 @@ class Inlist
       puts "WARNING: 'type' values are currently unsupported (regarding #{name}) because your humble author has no idea what they look like in an inlist. You should tell him what to do at wmwolf@physics.ucsb.edu. Your input, #{value}, has been passed through to your inlist verbatim."
       return value.to_s
     else
-      raise "Error parsing value for namelist item #{name}: #{value}. Expected type was #{type}."
+      raise "Error parsing value for namelist item #{name}: #{value}. Expected "
+            "type was #{type}."
     end
   end
 
@@ -287,47 +288,61 @@ class Inlist
     Inlist.get_defaults(temp_data, namelist, d_filename)
   end
 
-  def self.get_names_and_types(namelist, nt_filename = nil)
-    nt_filename ||= Inlist.nt_files[namelist]
-    nt_full_path = Inlist.nt_paths[namelist] + nt_filename
-    raise "Couldn't find file #{nt_filename}" unless File.exists?(nt_full_path)
-    contents = File.readlines(nt_full_path)
+  def self.get_names_and_types(namelist, nt_filenames = nil)
+    nt_filenames ||= Inlist.nt_files[namelist]
+    unless nt_filenames.respond_to?(:each)
+      nt_filenames = [nt_filenames]
+    end
+    nt_full_paths = nt_filenames.map { |file| Inlist.nt_paths[namelist] + file }
 
-    # Throw out comments and blank lines, ensure remaining lines are a proper
-    # Fortran assignment, then remove leading and trailing white space
-    contents.reject! { |line| is_comment?(line) or is_blank?(line) }
-    contents.map! do |line|
-      my_line = line.dup
-      my_line = my_line[0...my_line.index('!')] if has_comment?(my_line)
-      my_line.strip!
-    end
-    full_lines = []
-    contents.each_with_index do |line, i|
-      next unless line =~ /::/
-      full_lines << Inlist.full_line(contents, i)
-    end
-    pairs = full_lines.map { |line| line.split('::').map { |datum| datum.strip}}
     namelist_data = []
-    pairs.each do |pair|
-      type = case pair[0]
-      when /logical/ then :bool
-      when /character/ then :string
-      when /real/ then :float
-      when /integer/ then :int
-      when /type/ then :type
-      else
-        raise "Couldn't determine type of entry #{pair[0]} in #{nt_full_path}."
+
+    nt_full_paths.each do |nt_full_path|
+      unless File.exists?(nt_full_path)
+        raise "Couldn't find file #{nt_full_path}"
       end
-      names = pair[1].split(',').map { |name| name.strip }
-      names.each do |name|
-        is_arr = false
-        if name =~ /\(.*\)/
-          is_arr = true
-          name.sub!(/\(.*\)/, '')
+      contents = File.readlines(nt_full_path)
+
+      # Throw out comments and blank lines, ensure remaining lines are a proper
+      # Fortran assignment, then remove leading and trailing white space
+      contents.reject! { |line| is_comment?(line) or is_blank?(line) }
+      contents.map! do |line|
+        my_line = line.dup
+        my_line = my_line[0...my_line.index('!')] if has_comment?(my_line)
+        my_line.strip!
+      end
+      full_lines = []
+      contents.each_with_index do |line, i|
+        break if line =~ /\A\s*contains/
+        next unless line =~ /::/
+        full_lines << Inlist.full_line(contents, i)
+      end
+      pairs = full_lines.map do |line|
+        line.split('::').map { |datum| datum.strip}
+      end
+      pairs.each do |pair|
+        type = case pair[0]
+        when /logical/ then :bool
+        when /character/ then :string
+        when /real/ then :float
+        when /integer/ then :int
+        when /type/ then :type
+        else
+          raise "Couldn't determine type of entry #{pair[0]} in " +
+                "#{nt_full_path}."
         end
-        type_default = {:bool => false, :string => '', :float => 0.0, :int => 0}
-        dft = is_arr ? Hash.new(type_default[type]) : type_default[type]
-        namelist_data << InlistItem.new(name, type, dft, namelist, -1, is_arr)
+        names = pair[1].split(',').map { |name| name.strip }
+        names.each do |name|
+          is_arr = false
+          if name =~ /\(.*\)/
+            is_arr = true
+            name.sub!(/\(.*\)/, '')
+          end
+          type_default = {:bool => false, :string => '', :float => 0.0,
+                          :int => 0}
+          dft = is_arr ? Hash.new(type_default[type]) : type_default[type]
+          namelist_data << InlistItem.new(name, type, dft, namelist, -1, is_arr)
+        end
       end
     end
     namelist_data
@@ -476,6 +491,9 @@ class Inlist
         next if (i == 0 or i == @to_write[namelist].size - 1)
         this_line = @to_write[namelist][i]
         prev_line = @to_write[namelist][i-1]
+      
+        this_line = '' if this_line.nil?
+        prev_line = '' if prev_line.nil?
         if this_line.empty? and not(prev_line.empty? or prev_line == "\n")
           @to_write[namelist][i] = "\n"
         end
