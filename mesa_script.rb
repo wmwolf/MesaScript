@@ -251,7 +251,7 @@ class Inlist
       result
     end
     File.open(script_file, 'w') do |f|
-      f.puts "require './mesa_script'"
+      f.puts "require_relative 'mesa_script'"
       f.puts ''
       f.puts "Inlist.make_inlist('#{File.basename(inlist_file)}') do"
       new_contents.each { |line| f.puts '  ' + line }
