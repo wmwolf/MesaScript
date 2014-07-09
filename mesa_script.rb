@@ -232,12 +232,12 @@ class Inlist
           name = name + ' ='
         end
         name.downcase!
-        if value =~ /'*.'/ or value =~ /"*."/
+        if value =~ /'.*'/ or value =~ /".*"/
           result = name + ' ' + value             # leave strings alone
         elsif %w[.true. .false.].include?(value.downcase)
           result = name + ' ' + value.downcase.gsub('.', '') # fix booleans
-        elsif value.include?('.') or value.include?('d') or value.include?('e')
-          result = name + ' ' + value.sub('d', 'e')          # fix floats
+        elsif value =~ /\d+\.?\d*([eEdD]\d+)?/ #.include?('.') or value.include?('d') or value.include?('e') or value.include?('D')
+          result = name + ' ' + value.downcase.sub('d', 'e') # fix floats
         else
           result = name + ' ' + value             # leave everything else alone
         end
