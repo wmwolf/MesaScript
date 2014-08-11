@@ -1,6 +1,6 @@
 #! /usr/bin/env ruby
 
-require_relative 'mesa_script'
+require 'mesa_script'
 
 if ARGV.size == 0 or %w[-h --help].include?(ARGV[0])
   puts ''
