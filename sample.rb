@@ -1,4 +1,4 @@
-require_relative 'mesa_script'
+require 'mesa_script'
 
 # This script produces three inlists, named inlist_1, inlist_2, and inlist_3.
 # Each has a different value for the "mass" variable (in the code block below)
