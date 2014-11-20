@@ -1,5 +1,5 @@
 InlistItem = Struct.new(:name, :type, :value, :namelist, :order, :is_arr,
-:flagged)
+                        :num_indices, :flagged)
 
 class Inlist
 
@@ -85,22 +85,77 @@ class Inlist
   #        xa_lower_limit_species 1           # Same
   #        xa_lower_limit_species(1, 'h1')    # flags and sets value 1
   #        xa_lower_limit_species 1, 'h1'     # same
+  #
+  # For multi-dimensional arrays, things are even more vaired. You can treat 
+  # them like 1-dimensional arrays with the "index" just being an array of
+  # indices, for instance:
+  # 
+  #        text_summary1_name[[1,2]] = 'star_mass' # flags ALL values and sets
+  #        text_summary1_name([1,2], 'star_mass')  # text_summary1_name(1,2)
+  #        text_summary1_name [1,2], 'star_mass    # to 'star_mass'
+  #
+  #        text_summary1_name [1,2]                # flags ALL values and 
+  #        text_summary1_name([1,2])               # returns 
+  #                                                # text_sumarry_name(1,2)
+  # 
+  #        text_summary_name()                     # flags ALL values and 
+  #        text_summary_name                       # returns entire hash for
+  #                                                # text_summary_name
+  #
+  # Alternatively, can use the more intuitive form where indices are separate
+  # and don't need to be in an array, but this only works with the parentheses
+  # versions (i.e. the first option directly above has no counterpart):
+  #
+  #        text_summary1_name(1, 2, 'star_mass')
+  #        text_summary1_name 1, 2, 'star_mass'    # same as above (first 3)
+  #        
+  #        text_summary1_name
+  
   def self.make_parentheses_method(datum)
     name = datum.name
+    num_indices = datum.num_indices
     define_method(name + '[]=') do|arg1, arg2|
+      if num_indices > 1
+        raise "First argument of #{name}[]= (part in brackets) must be an array with #{num_indices} indices since #{name} is a multi-dimensional array." unless (arg1.is_a?(Array) and arg1.length == num_indices)
+      end
       self.flag_command(name)
-      self.data_hash[name].value[args1] = arg2
+      self.data_hash[name].value[arg1] = arg2
     end
     define_method(name + '[]') do |arg|
+      if num_indices > 1
+        raise "Argument of #{name}[] (part in brackets) must be an array with #{num_indices} indices since #{name} is a multi-dimensional array." unless (arg.is_a?(Array) and arg.length == num_indices)
+      end
       self.flag_command(name)
       self.data_hash[name].value[arg]
     end
     define_method(name) do |*args|
       self.flag_command(name)
-      return self.data_hash[name].value if args.empty?
-      self.data_hash[name].value[args[0]] if args.size == 1
-      self.data_hash[name].value[args[0]] = args[1] if args.size == 2
-      raise "Invalid number of arguments (expected 0, 1, or 2) for method #{name}." if args.size > 2
+      case args.length
+      when 0 then self.data_hash[name].value
+      when 1
+        if num_indices > 1
+          raise "First argument of #{name} must be an array with #{num_indices} indices since #{name} is a multi-dimensional array OR must provide all indices as separate arguments." unless (args[0].is_a?(Array) and args[0].length == num_indices)
+        end
+        self.data_hash[name].value[args[0]]  
+      when 2
+        if num_indices == 1 and (not args[0].is_a?(Array))
+          self.data_hash[name].value[args[0]] = args[1]
+        elsif num_indices == 2 and (not args[0].is_a?(Array)) and args[1].is_a?(Fixnum)
+          self.data_hash[name].value[args]
+        elsif num_indices > 1
+          raise "First argument of #{name} must be an array with #{num_indices} indices since #{name} is a multi-dimensional array OR must provide all indices as separate arguments." unless (args[0].is_a?(Array) and args[0].length == num_indices)
+          self.data_hash[name].value[args[0]] = args[1]
+        else
+          raise "First argument of #{name} must be an array with #{num_indices} indices since #{name} is a multi-dimensional array OR must provide all indices as separate arguments. The optional final argument is what the #{name} would be set to. Omission of this argument will simply flag #{name} to appear in the inlist."   
+        end 
+      when num_indices
+        self.data_hash[name].value[args]
+      when num_indices + 1
+        raise "Bad arguments for #{name}. Either provide an array of #{num_indices} indices for the first argument or provide each index in succession, optionally specifying the desired value for the last argument." if args[0].is_a?(Array)
+        self.data_hash[name].value[args[0..-2]] = args[-1]
+      else
+        raise "Wrong number of arguments for #{name}. Can provide zero arguments (just flag command), one argument (array of indices for multi-d array or one index for 1-d array), two arguments (array of indices/single index for multi-/1-d array and a new value for the value), #{num_indices} arguments where the elements themselves are the right indices (returns the specified element of the array), or #{num_indices + 1} arguments to set the specific value and return it."
+      end      
     end
     alias_method name.downcase.to_sym, name.to_sym
     alias_method (name.downcase + '[]').to_sym, (name + '[]').to_sym
@@ -147,7 +202,9 @@ class Inlist
   # single quotes.
   def self.parse_input(name, value, type)
     if value.class == String
-      return "'#{value}'" if type == :string
+      if type == :string
+        value = "'#{value}'" unless value[0] == "'" and value[-1] == "'"
+      end
       return value
     elsif type == :bool
       unless [TrueClass, FalseClass].include?(value.class)
@@ -165,7 +222,8 @@ class Inlist
       raise "Invalid value for namelist item #{name}: #{value}. Must provide"+
       " an int or float." unless value.is_a?(Integer) or value.is_a?(Float)
       if value.is_a?(Float)
-        puts "WARNING: Expected integer for #{name} but got #{value}. Value " +         " will be converted to an integer."
+        puts "WARNING: Expected integer for #{name} but got #{value}. Value" + 
+             " will be converted to an integer."
       end
       return value.to_i.to_s
     elsif type == :float
@@ -226,9 +284,16 @@ class Inlist
           puts "name: #{name}"
           puts "value: #{value}"
         end
-        if name =~ /\((\d+)\)/                    # fix array assignments
+        if name =~ /\((\d+)\)/                    # fix 1D array assignments
           name.sub!('(', '[')
           name.sub!(')', ']')
+          name = name + ' ='
+        elsif name =~ /\((\s*\d+\s*,\s*)+\d\s*\)/ # fix multi-D arrays
+          # arrays become hashes in MesaScript, so rather than having multiple
+          # indices, the key becomes the array of indices themselves, hence
+          # the double braces replacing single parentheses
+          name.sub!('(', '[[')          
+          name.sub!(')', ']]')
           name = name + ' ='
         end
         name.downcase!
@@ -236,7 +301,7 @@ class Inlist
           result = name + ' ' + value             # leave strings alone
         elsif %w[.true. .false.].include?(value.downcase)
           result = name + ' ' + value.downcase.gsub('.', '') # fix booleans
-        elsif value =~ /\d+\.?\d*([eEdD]\d+)?/ #.include?('.') or value.include?('d') or value.include?('e') or value.include?('D')
+        elsif value =~ /\d+\.?\d*([eEdD]\d+)?/
           result = name + ' ' + value.downcase.sub('d', 'e') # fix floats
         else
           result = name + ' ' + value             # leave everything else alone
@@ -331,17 +396,34 @@ class Inlist
           raise "Couldn't determine type of entry #{pair[0]} in " +
                 "#{nt_full_path}."
         end
-        names = pair[1].split(',').map { |name| name.strip }
+        name_chars = pair[1].split('')
+        names = []
+        paren_level = 0
+        name_chars.each do |char|
+          if paren_level > 0 and char == ','
+            names << '!'
+            next
+          elsif char == '('
+            paren_level += 1
+          elsif char == ')'
+            paren_level -= 1
+          end
+          names << char
+        end
+        names = names.join.split(',').map { |name| name.strip }
         names.each do |name|
           is_arr = false
+          num_indices = 0
           if name =~ /\(.*\)/
             is_arr = true
+            num_indices = name.count('!') + 1
             name.sub!(/\(.*\)/, '')
           end
           type_default = {:bool => false, :string => '', :float => 0.0,
                           :int => 0}
           dft = is_arr ? Hash.new(type_default[type]) : type_default[type]
-          namelist_data << InlistItem.new(name, type, dft, namelist, -1, is_arr)
+          namelist_data << InlistItem.new(name, type, dft, namelist, -1, is_arr,
+                                          num_indices)
         end
       end
     end
@@ -376,14 +458,21 @@ class Inlist
       if name =~ /\(.*\)/
         selector = name[/\(.*\)/][1..-2]
         name.sub!(/\(.*\)/, '')
-        if selector == ':'
+        if selector.include?(':')
           default = Hash.new(default)
-        else
+        elsif selector.count(',') == 0
           default = {selector.to_i => default}
+        else
+          selector = selector.split(',').map { |index| index.strip.to_i }
+          default = default = {selector => default}
         end
       end
-      n_d_hash[name] = default
-      n_o_hash[name] = i
+      if n_d_hash[name].is_a?(Hash)
+        n_d_hash[name].merge!(default)
+      else
+        n_d_hash[name] = default
+      end
+      n_o_hash[name] ||= i
     end
     temp_data.each do |datum|
       unless n_d_hash.keys.include?(datum.name)
@@ -393,7 +482,7 @@ class Inlist
       if default.is_a?(Hash) and datum.value.is_a?(Hash)
         datum.value = datum.value.merge(default)
       else
-        datum.value ||= default
+        datum.value = default || datum.value
       end
       datum.order = n_o_hash[datum.name] || datum.order
     end
@@ -456,13 +545,26 @@ class Inlist
   def flag_command(name)
     @data_hash[name].flagged = true
   end
+  
+  def unflag_command(name)
+    @data_hash[name].flagged = false
+  end
 
   def stage_namelist_command(name)
     datum = @data_hash[name]
     if datum.is_arr
       lines = @data_hash[name].value.keys.map do |key|
-        "  " + datum.name + '(' + key.to_s + ')' + ' = ' +
+        prefix = "  #{datum.name}("
+        suffix = ") = " + 
         Inlist.parse_input(datum.name, datum.value[key], datum.type) + "\n"
+        if key.respond_to?(:inject)
+          indices = key[1..-1].inject(key[0].to_s) do |res, elt| 
+            "#{res}, #{elt}"
+          end
+        else
+          indices = key.to_s
+        end
+        prefix + indices + suffix
       end
       lines = lines.join
       @to_write[datum.namelist][datum.order] = lines
