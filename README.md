@@ -151,33 +151,6 @@ work:
 I tried to program this functionality in, and the kind people at
 [StackOverflow](http://stackoverflow.com/questions/21036873/how-do-i-write-a-method-to-edit-an-array-hash-using-parentheses-instead-of-squar/21044781?noredirect=1#21044781) kindly but firmly convinced me it was utterly impossible to to with Ruby without writing a parser of my own. Just stick to the bracket syntax or the less natural parentheses/space notations.
 
-There are also multi-dimensional arrays that can be set in inlists. The most
-obvious examples are the Text_Summary values for use in pgstar namelists. To
-change values for multi-dimensional arrays, there are two options that extend
-the basic one-dimensional array syntax. First, you can do everything the same,
-but replace every instance of a single index (the "1" in the above examples)
-with an array of indices. For example,
-
-    text_summary1_name[[1,2]] = 'new_name'  # flags and sets array value
-
-Note that the "index" has been replaced by an array and *not* multiple indices.
-This is because the information is stored in a hash, where the keys are now
-arrays rather than just integers.
-
-The second option is to just use a functional form (like the second two 
-options above for one-dimensional arrays), where either the first argument
-is an array, like the first example, or the first n arguments are the indices
-and the last argument, if given, is the new value, like
-
-    text_summary1_name(1, 2, 'new_name')    # flags and sets array value
-    text_summary1_name 1, 2, 'new_name'
-    text_summary1_name 1, 2                 # just flags the entire array
-    text_summary1_name
-
-Currently, flagging any one array entry will flag the entire array, so prepare
-for a pollution of your inlist with all values, whether or not you explicitly
-set them in your MesaScript.
-
 ####Other Details
 That's really all you need to know to start making inlists with MesaScript,
 though I should remind you, especially if you aren't familiar with Ruby, about
@@ -299,9 +272,8 @@ have a line like
     initial_z
 
 that neither uses the return value nor changes the stored value. This will just
-flag `initial_z` for being put in the final inlist. To unflag a command, use
-the `unflag_command` method with the argument as the string containing the
-case-sensitive name of the command.
+flag `initial_z` for being put in the final inlist. Note that there is
+currently no way to unflag an inlist item.
 
 For arrays, things work like you might expect. Any time any one of the versions
 of the array methods are called, that entire array category is staged for
