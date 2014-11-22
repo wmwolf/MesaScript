@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'mesa_script'
-  s.version = '0.1'
+  s.version = '0.1.1'
   s.authors = ["William Wolf"]
   s.date = %q{2014-11-21}
   s.description = 'MesaScript - a DSL for making dynamic inlists for the MESA '+
