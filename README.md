@@ -44,9 +44,18 @@ set of parameters, run MESA star, then use the output of that run to dictate a
 new inlist and run, creating a chain (maybe a MESA root find of sorts).
 
 ###Installation
-Someday, I hope to package this as a gem, but for now, it's staying hosted on
-Github, which means you need to install it yourself. Clone or otherwise
-download the repository somewhere to your home directory with
+MesaScript is now available as a gem! Assuming you have the `gem` command up
+and running (you probably do, but if not, check out 
+[RubyGems](https://rubygems.org) to get it up and running). Simply run
+
+    gem install mesa_script
+
+and you should be good to go. You'll be able to include MesaScript in your
+ruby files with `require mesa_script`, and `inlist2mesascript` will be 
+available to you from the command line to convert your existing inlists to
+mesascript files.
+
+If you want to edit the source or don't want to use rubygems, clone or otherwise download the repository somewhere to your home directory with
 
     git clone https://github.com/wmwolf/MesaScript.git ~/MesaScript
 
