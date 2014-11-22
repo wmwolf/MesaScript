@@ -68,7 +68,9 @@ class Inlist
   # Three ways to access array categories. All methods will cause the
   # data category to be staged into your inlist, even if you do not change it
   # Basically, if it appears in your mesascript, it will definitely appear
-  # in your inlist. There is no way to unflag an entry.
+  # in your inlist. A command can be unflagged by calling 
+  # `unflag_command('COMMAND_NAME')` where COMMAND_NAME is the case-sensitive
+  # name of the command to be unflagged.
   #
   # 1. Standard array way like
   #        xa_lower_limit_species[1] = 'h1'
@@ -165,7 +167,7 @@ class Inlist
   # Two ways to access/change scalars. All methods will cause the data category
   # to be staged into your inlist, even if you do not change the value.
   # Basically, if it appears in your mesascript, it will definitely appear in
-  # your inlist. There is no way to unflag an entry.
+  # your inlist. 
   #
   # 1. Change value, like
   #        initial_mass(1.0)
@@ -181,6 +183,10 @@ class Inlist
   #    syntaxes are allowed, though the one without parentheses is more
   #    traditional for ruby (why do you want empty parentheses anyway?). Returns
   #    current value.
+  #
+  # A command can be unflagged by calling `unflag_command('COMMAND_NAME')` 
+  # where COMMAND_NAME is the case-sensitive name of the command to be
+  # unflagged.
 
   def self.make_regular_method(datum)
     name = datum.name
