@@ -3,6 +3,21 @@ InlistItem = Struct.new(:name, :type, :value, :namelist, :order, :is_arr,
 
 class Inlist
 
+  # Get access to current MESA version.
+  def self.version
+    v_num = IO.read(File.join(ENV['MESA_DIR'], 'data', 'version_number')).to_i
+    return v_num
+  end
+
+  # Determine proper file suffix for fortran source
+  def self.f_end
+    if Inlist.version >= 7380
+      "f90"
+    else
+      "f"
+    end
+  end
+
 
   @inlist_data = {}
   # Different namelists can be added or subtracted if MESA should change or
@@ -14,9 +29,10 @@ class Inlist
   ################## POINT TO .INC FILES HERE ####################
   @nt_files = {
                 'star_job' => %w{star_job_controls.inc},
-                'controls' => %w{star_controls.inc ctrls_io.f},
+                'controls' => %w{star_controls.inc},
                 'pgstar'   => %w{pgstar_controls.inc}
               }
+  @nt_files['controls'] << "ctrls_io.#{f_end}"
   # User can specify a custom name for a namelist defaults file. The default
   # is simply the namelist name followed by '.defaults'
 
@@ -424,6 +440,9 @@ class Inlist
             is_arr = true
             num_indices = name.count('!') + 1
             name.sub!(/\(.*\)/, '')
+          elsif pair[0] =~ /dimension\((.*)\)/i
+            is_arr = true
+            num_indices = $1.count(',') + 1
           end
           type_default = {:bool => false, :string => '', :float => 0.0,
                           :int => 0}
