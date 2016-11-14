@@ -25,13 +25,13 @@ class Inlist
   # similar way to get the desired behavior for additional namelists.
 
   #################### ADD NEW NAMELISTS HERE ####################
-  @namelists = %w{ star_job controls pgstar binary_controls }
+  @namelists = %w{ binary_controls star_job controls pgstar }
   ################## POINT TO .INC FILES HERE ####################
   @nt_files = {
+    'binary_controls' => %w{binary_controls.inc},
     'star_job' => %w{star_job_controls.inc},
     'controls' => %w{star_controls.inc},
-    'pgstar'   => %w{pgstar_controls.inc},
-    'binary_controls' => %w{binary_controls.inc}
+    'pgstar'   => %w{pgstar_controls.inc}
   }
   @nt_files['controls'] << "ctrls_io.#{f_end}"
   # User can specify a custom name for a namelist defaults file. The default
@@ -45,17 +45,17 @@ class Inlist
   ############ GIVE PATHS TO .INC AND .DEF FILES HERE ###########
   #@nt_paths = Hash.new(ENV['MESA_DIR'] + '/star/private/')
   @nt_paths = {
+    'binary_controls' => ENV['MESA_DIR'] + '/binary/public/',
     'star_job' => ENV['MESA_DIR'] + '/star/private/',
     'controls' => ENV['MESA_DIR'] + '/star/private/',
-    'pgstar'   => ENV['MESA_DIR'] + '/star/private/',
-    'binary_controls' => ENV['MESA_DIR'] + '/binary/public/'
+    'pgstar'   => ENV['MESA_DIR'] + '/star/private/'
   }
   #@d_paths = Hash.new(ENV['MESA_DIR'] + '/star/defaults/')
   @d_paths = {
+    'binary_controls' => ENV['MESA_DIR'] + '/binary/defaults/',
     'star_job' => ENV['MESA_DIR'] + '/star/defaults/',
     'controls' => ENV['MESA_DIR'] + '/star/defaults/',
-    'pgstar'   => ENV['MESA_DIR'] + '/star/defaults/',
-    'binary_controls' => ENV['MESA_DIR'] + '/binary/defaults/'
+    'pgstar'   => ENV['MESA_DIR'] + '/star/defaults/'
   }
   
 
