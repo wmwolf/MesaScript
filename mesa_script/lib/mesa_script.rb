@@ -18,6 +18,17 @@ class Inlist
     end
   end
 
+  def self.read_config_file(file_path)
+    # This method should read in a config file given by file_path
+    # and it should return a hash that fully specifies the following
+    # variables:
+    #   @namelists
+    #   @nt_files
+    #   @d_files
+    #   @nt_paths
+    #   @d_paths
+  end
+
 
   @inlist_data = {}
   # Different namelists can be added or subtracted if MESA should change or
@@ -30,7 +41,7 @@ class Inlist
   @nt_files = {
                 'star_job' => %w{star_job_controls.inc},
                 'controls' => %w{star_controls.inc},
-                'pgstar'   => %w{pgstar_controls.inc}
+                'pgstar'   => %w{pgstar_controls.inc},
               }
   @nt_files['controls'] << "ctrls_io.#{f_end}"
   # User can specify a custom name for a namelist defaults file. The default
