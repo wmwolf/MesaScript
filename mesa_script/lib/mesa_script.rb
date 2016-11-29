@@ -73,6 +73,15 @@ class Inlist
     attr_accessor :namelists, :nt_paths, :d_paths, :inlist_data, :d_files,
                   :nt_files
   end
+  
+  # A useful tool for checking if multiple namelists have commands with the same name.
+  # don't know if @inlist_data is a hash or array, so I hope #detect and #count work correctly
+  def self.check_for_name_collisions(data_list)
+    command = data_list.detect{ |elt| data_list.count(elt) > 1 }
+    if command
+      raise "There are multiple commands with the #{command} name"
+    end
+  end
 
   # Generate methods for the Inlist class that set various namelist parameters.
   def self.get_data
@@ -89,9 +98,11 @@ class Inlist
           Inlist.make_regular_method(datum)
         end
       end
+      datum
     end
-    # don't do this nonsense again unles specifically told to do so
+    # don't do this nonsense again unless specifically told to do so
     Inlist.have_data = true
+    Inlist.check_for_name_collisions(@inlist_data)
   end
 
   # Three ways to access array categories. All methods will cause the
