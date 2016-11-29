@@ -19,10 +19,37 @@ class Inlist
   end
 
 
+
+  # SCS
+  # def read_config_file(filename)
+  #   namelists
+  #   nt_files
+  #   d_files
+  #   nt_paths
+  #   d_paths
+  # end
+  # end SCS
+
+
+
   @inlist_data = {}
   # Different namelists can be added or subtracted if MESA should change or
   # proprietary inlists are required. Later hashes should be edited in a
   # similar way to get the desired behavior for additional namelists.
+
+
+
+  # SCS
+  # Maybe something like: current_config = self.read_config_file
+  # Lines above this, we [would] have a method that reads a config file and returns a hash specifying 
+  # the variables that will need to be included in the upcoming simulation
+  # end SCS
+  
+  # SCS
+  # if current_config.empty?
+  # set all the variables as already listed below
+  # else use the config!
+  # end SCS
 
   #################### ADD NEW NAMELISTS HERE ####################
   @namelists = %w{ binary_controls star_job controls pgstar }
