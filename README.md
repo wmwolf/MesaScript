@@ -297,5 +297,8 @@ Note that these array methods, as indicated, point to hashes (not arrays) of
 values. So `xa_central_lower_limit_species[1] = 'h1'` would return
 `{1 => 'h1'}`.
 
+## Citing MesaScirpt
+MesaScript has a DOI: [![DOI](https://zenodo.org/badge/14879605.svg)](https://zenodo.org/badge/latestdoi/14879605). If your work made significant use of MesaScript, please cite it in your acknowledgements or your software section.
+
 ## Further Work
 I warmly welcome bug reports, feature suggestions, and most all, pull requests!
