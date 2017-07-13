@@ -1,18 +1,18 @@
 MesaScript
 ==========
 
-###MESA Requirement!
+### MESA Requirement!
 In its current state, MesaScript requires MESA rev. 5596 or above. This is due
 to a sensitivity to where the `'.inc'` files are stored on earlier versions. If
 there is demand for MesaScript for earlier revisions, I will look into making
 it backward compatible.
 
-###The Short Short Version
+### The Short Short Version
 To get up and running fast, skip to installation, then try and use the included
 sample file, `sample.rb` (via running `ruby sample.rb` in the command line). The
 comments in `sample.rb` should get you started, especially if you have at least
 a little Ruby know-how.
-###What is MesaScript?
+### What is MesaScript?
 Lightweight, Ruby-based language that provides a powerful way to make inlists
 for MESA projects. Really, MesaScript is a DSL (domain-specific language) built
 on top of Ruby, so Ruby code "just works" inside MesaScript (if you're familiar
@@ -43,7 +43,7 @@ are pretty wide open. You could easily make a script that starts with a given
 set of parameters, run MESA star, then use the output of that run to dictate a
 new inlist and run, creating a chain (maybe a MESA root find of sorts).
 
-###Installation
+### Installation
 MesaScript is now available as a gem! Assuming you have the `gem` command up
 and running (you probably do, but if not, check out 
 [RubyGems](https://rubygems.org) to get it up and running). Simply run
@@ -91,7 +91,7 @@ work. The `mesa_script.rb` file generates all the necessary data it needs from
 the MESA source on the fly (this also makes it nearly MESA version
 independent).
 
-###Basic Usage
+### Basic Usage
 The `mesa_script.rb` file defines just one class, Inlist, which we'll interact
 with primarily through one class method, `make_inlist`. Just put the following
 in a file to make a blank inlist:
@@ -113,14 +113,14 @@ by the way). Then to actually generate the inlist, enter
 MesaScript, and you did so using fewer lines than it would have taken to
 actually make that inlist on your own (technically)!
 
-###Entering Inlist Commands
+### Entering Inlist Commands
 Making blank inlists is boring, so now let's cover how you actually make useful
 inlists. For mesa inlists, there are really only two types of declarations:
 those for scalars and those for array. Let's talk about scalars first, since
 they are far more common. Then we'll get to the more complicated array
 assignments.
 
-####Scalar Assignments
+#### Scalar Assignments
 As an example, let's say we want to set the initial mass of our star to 2.0
 solar masses. The inlist command for this is `initial_mass`. In a regular
 inlist file, we would need to put this in the proper namelist, `&controls` as
@@ -143,7 +143,7 @@ called `initial_mass`. (For the person curious as to why I didn't program this
 functionality in, google something like "instance_eval setter method" to
 discover what took me too long to figure out.)
 
-####Array Assignments
+#### Array Assignments
 As an example, let's say we want to set a lower limit on a certain central
 abundance as a stopping condition. Then we would, at the minimum, need to set
 the inlist command `xa_central_lower_limit_species(1) = 'h1'`, for example. In MesaScript, there are three ways to do this:
@@ -160,7 +160,7 @@ work:
 I tried to program this functionality in, and the kind people at
 [StackOverflow](http://stackoverflow.com/questions/21036873/how-do-i-write-a-method-to-edit-an-array-hash-using-parentheses-instead-of-squar/21044781?noredirect=1#21044781) kindly but firmly convinced me it was utterly impossible to to with Ruby without writing a parser of my own. Just stick to the bracket syntax or the less natural parentheses/space notations.
 
-####Other Details
+#### Other Details
 That's really all you need to know to start making inlists with MesaScript,
 though I should remind you, especially if you aren't familiar with Ruby, about
 the basic types of entries you might use. Most inlist commands are one of the
@@ -218,10 +218,10 @@ inlist commands so you don't forget to change a particular command when you
 move on to a different run (like forgetting to change a `LOG_dir`, which I've
 done a few too many times and thus overwritten some data).
 
-###Deeper and Deeper...
+### Deeper and Deeper...
 Are you still reading this? Well, you must want to do more.
 
-###Using Custom Namelists
+### Using Custom Namelists
 You can also make MesaScript know about additional namelists (or forget about
 the standard three). After requiring the `mesa_script` file, you can change the
 namelists it cares about via the following commands (obviously subbing out any
@@ -252,7 +252,7 @@ That *should* set things up to work with custom namelists, so long as the
 `.inc` and `.defaults` files are formatted more or less the same as the "stock"
 ones.
 
-###Accessing Current Values and Displaying Default Values
+### Accessing Current Values and Displaying Default Values
 Perhaps you want to display a default value in your inlist, but not actually
 change it. Well, most of the assignment methods mentioned earlier
 are also getter methods. I haven't mentioned how these methods actually work, so I'll do so now since you're still reading this manifesto.
@@ -297,5 +297,5 @@ Note that these array methods, as indicated, point to hashes (not arrays) of
 values. So `xa_central_lower_limit_species[1] = 'h1'` would return
 `{1 => 'h1'}`.
 
-##Further Work
+## Further Work
 I warmly welcome bug reports, feature suggestions, and most all, pull requests!
