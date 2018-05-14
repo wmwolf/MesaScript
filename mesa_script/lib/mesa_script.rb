@@ -1,20 +1,21 @@
 InlistItem = Struct.new(:name, :type, :value, :namelist, :order, :is_arr,
                         :num_indices, :flagged)
+def namelist_sym(namelist)
+  namelist.to_s.downcase.to_sym
+end
 
 class Inlist
-
   # Get access to current MESA version.
   def self.version
-    v_num = IO.read(File.join(ENV['MESA_DIR'], 'data', 'version_number')).to_i
-    return v_num
+    IO.read(File.join(ENV['MESA_DIR'], 'data', 'version_number')).to_i
   end
 
   # Determine proper file suffix for fortran source
   def self.f_end
     if Inlist.version >= 7380
-      "f90"
+      'f90'
     else
-      "f"
+      'f'
     end
   end
 
@@ -35,32 +36,44 @@ class Inlist
   # the three common star namelists and the one common binary namelist are
   # defined below for convenience
   def self.config_namelists(namelist: nil, source_files: nil,
-    defaults_file: nil)
-    if namelist.nil? || namelist.empty?
-      raise NamelistError.new("Must provide a namelist if reconfiguring.")
-    end
-    if source_files.nil? || source_files.empty?
-      raise NamelistError.new(
-        "Must provide a source file for namelist #{namelist}. For example, "+
-        "$MESA_DIR/star/private/star_job_controls.inc for star_job.")
-    end
-    # use downcased version of namelist as a symbol; only add if needed
-    namelist_sym = namelist.to_s.downcase.to_sym
-    @namelists << namelist_sym unless @namelists.include? namelist_sym
+                            defaults_file: nil)
+    add_namelist(namelist)
+    set_source_files(namelist, source_files)
+    set_defaults_file(namelist, defaults_file)
+  end
 
+  def self.add_namelist(new_namelist)
+    if new_namelist.nil? || new_namelist.empty?
+      raise(NamelistError.new, 'Must provide a namelist name.')
+    end
+    return if @namelists.include? namelist_sym(new_namelist)
+    @namelists << namelist_sym(new_namelist)
+  end
+
+  def self.set_source_files(namelist, new_sources)
     # set source files. There may be more than one, so we ALWAYS make it an
     # array. Flatten magic allows for users to supply an array or a scalar
     # (single string)
-    source_to_add = if source_files.respond_to? :map
-      source_files.map(&:to_s)
-    else
-      source_files.to_s
+    if new_sources.nil? || new_sources.empty?
+      raise NamelistError.new,
+            "Must provide a source file for namelist #{namelist}. For " \
+            'example, $MESA_DIR/star/private/star_job_controls.inc for ' \
+            'star_job.'
     end
-    @source_files[namelist_sym] = [source_files].flatten if source_files
-
-    # set defaults file. This is limited to being scalar string for now.
-    @defaults_files[namelist_sym] = defaults_file.to_s if defaults_file
+    source_to_add = if new_sources.respond_to?(:map)
+                      new_sources.map(&:to_s)
+                    else
+                      new_sources.to_s
+                    end
+    @source_files[namelist_sym(namelist)] = [source_to_add].flatten
   end
+
+  def self.set_defaults_file(namelist, new_defaults_file)
+    # set defaults file. This is limited to being scalar string for now.
+    return unless new_defaults_file
+    @defaults_files[namelist_sym(namelist)] = new_defaults_file.to_s
+  end
+
 
   # delete namelist and associated data
   def self.delete_namelist(namelist)

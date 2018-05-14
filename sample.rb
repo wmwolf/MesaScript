@@ -6,9 +6,8 @@ require_relative 'mesa_script/lib/mesa_script'
 # different LOGS directory name. Try running ('ruby mesa_test.rb') this and then
 # seeing if you understand how the output relates to the input.
 
-Inlist.add_star_job_defaults
-Inlist.add_controls_defaults
-Inlist.add_pgstar_defaults
+Inlist.add_star_defaults
+Inlist.get_data
 
 masses = [1, 2, 3]
 masses.each do |mass|
