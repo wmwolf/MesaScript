@@ -112,38 +112,39 @@ class Inlist
   end
 
   #################### ADD NEW NAMELISTS HERE ####################
-  @namelists = %w{ binary_controls star_job controls pgstar }
+  # This is now done via config_namelists mechanism
+  # @namelists = %w{ binary_controls star_job controls pgstar }
   ################## POINT TO .INC FILES HERE ####################
-  @nt_files = {
-    'binary_controls' => %w{binary_controls.inc},
-    'star_job' => %w{star_job_controls.inc},
-    'controls' => %w{star_controls.inc},
-    'pgstar'   => %w{pgstar_controls.inc}
-  }
-  @nt_files['controls'] << "ctrls_io.#{f_end}"
+  # @nt_files = {
+    # 'binary_controls' => %w{binary_controls.inc},
+    # 'star_job' => %w{star_job_controls.inc},
+    # 'controls' => %w{star_controls.inc},
+    # 'pgstar'   => %w{pgstar_controls.inc}
+  # }
+  # @nt_files['controls'] << "ctrls_io.#{f_end}"
   # User can specify a custom name for a namelist defaults file. The default
   # is simply the namelist name followed by '.defaults'
 
   ################ POINT TO .DEFAULTS FILES HERE #################
-  @d_files = {}
+  # @d_files = {}
 
   # User can add new paths to namelist default files through this hash
 
   ############ GIVE PATHS TO .INC AND .DEF FILES HERE ###########
   #@nt_paths = Hash.new(ENV['MESA_DIR'] + '/star/private/')
-  @nt_paths = {
-    'binary_controls' => ENV['MESA_DIR'] + '/binary/public/',
-    'star_job' => ENV['MESA_DIR'] + '/star/private/',
-    'controls' => ENV['MESA_DIR'] + '/star/private/',
-    'pgstar'   => ENV['MESA_DIR'] + '/star/private/'
-  }
+  # @nt_paths = {
+    # 'binary_controls' => ENV['MESA_DIR'] + '/binary/public/',
+    # 'star_job' => ENV['MESA_DIR'] + '/star/private/',
+    # 'controls' => ENV['MESA_DIR'] + '/star/private/',
+    # 'pgstar'   => ENV['MESA_DIR'] + '/star/private/'
+  # }
   #@d_paths = Hash.new(ENV['MESA_DIR'] + '/star/defaults/')
-  @d_paths = {
-    'binary_controls' => ENV['MESA_DIR'] + '/binary/defaults/',
-    'star_job' => ENV['MESA_DIR'] + '/star/defaults/',
-    'controls' => ENV['MESA_DIR'] + '/star/defaults/',
-    'pgstar'   => ENV['MESA_DIR'] + '/star/defaults/'
-  }
+  # @d_paths = {
+    # 'binary_controls' => ENV['MESA_DIR'] + '/binary/defaults/',
+    # 'star_job' => ENV['MESA_DIR'] + '/star/defaults/',
+    # 'controls' => ENV['MESA_DIR'] + '/star/defaults/',
+    # 'pgstar'   => ENV['MESA_DIR'] + '/star/defaults/'
+  # }
   
 
 ############### NO MORE [SIMPLE] USER-CUSTOMIZABLE FEATURES BELOW ##############
@@ -158,14 +159,16 @@ class Inlist
   class << self
     attr_accessor :have_data
     attr_accessor :namelists, :source_files, :defaults_files, :inlist_data,
-                  :nt_paths, :d_paths, :d_files, :nt_files
+                  # :nt_paths, :d_paths, :d_files, :nt_files
   end
 
   # Generate methods for the Inlist class that set various namelist parameters.
-  def self.get_data
+  def self.get_data(use_star_as_fallback: true)
+    # might need to add star data; preserves expected behavior (minus binary)
+    Inlist.add_star_defaults if use_star_as_fallback && Inlist.namelists.empty?
     Inlist.namelists.each do |namelist|
       @inlist_data[namelist] = Inlist.get_namelist_data(namelist,
-        Inlist.nt_files[namelist], Inlist.d_files[namelist])
+        Inlist.source_files[namelist], Inlist.defaults_files[namelist])
     end
     # create methods (interface) for each data category
     @inlist_data.each_value do |namelist_data|
@@ -470,25 +473,26 @@ class Inlist
   # belongs to, and its relative ordering in that namelist. Bogus defaults are
   # assigned according to the object's type, and the ordering is unknown.
 
-  def self.get_namelist_data(namelist, nt_filename = nil, d_filename = nil)
-    temp_data = Inlist.get_names_and_types(namelist, nt_filename)
-    Inlist.get_defaults(temp_data, namelist, d_filename)
+  def self.get_namelist_data(namelist, source_files = nil, defaults_file = nil)
+    temp_data = Inlist.get_names_and_types(namelist, source_files)
+    Inlist.get_defaults(temp_data, namelist, defaults_files)
   end
 
-  def self.get_names_and_types(namelist, nt_filenames = nil)
-    nt_filenames ||= Inlist.nt_files[namelist]
-    unless nt_filenames.respond_to?(:each)
-      nt_filenames = [nt_filenames]
-    end
-    nt_full_paths = nt_filenames.map { |file| Inlist.nt_paths[namelist] + file }
+  def self.get_names_and_types(namelist, source_files = nil)
+    source_files = Inlist.source_files[namelist]
+    # nt_filenames ||= Inlist.nt_files[namelist]
+    # unless nt_filenames.respond_to?(:each)
+    #   nt_filenames = [nt_filenames]
+    # end
+    # nt_full_paths = nt_filenames.map { |file| Inlist.nt_paths[namelist] + file }
 
     namelist_data = []
 
-    nt_full_paths.each do |nt_full_path|
-      unless File.exists?(nt_full_path)
-        raise "Couldn't find file #{nt_full_path}"
+    source_files.each do |source_file|
+      unless File.exists?(source_file)
+        raise "Couldn't find file #{source_file}"
       end
-      contents = File.readlines(nt_full_path)
+      contents = File.readlines(source_file)
 
       # Throw out comments and blank lines, ensure remaining lines are a proper
       # Fortran assignment, then remove leading and trailing white space
@@ -516,7 +520,7 @@ class Inlist
         when /type/ then :type
         else
           raise "Couldn't determine type of entry #{pair[0]} in " +
-                "#{nt_full_path}."
+                "#{source_file}."
         end
         name_chars = pair[1].split('')
         names = []
@@ -559,11 +563,15 @@ class Inlist
   # Inlist.get_names_and_types and assigns defaults and orders to each item.
   # Looks for this information in the specified defaults filename.
 
-  def self.get_defaults(temp_data, namelist, d_filename = nil, whine = false)
-    d_filename ||= namelist + '.defaults'
-    d_full_path = Inlist.d_paths[namelist] + d_filename
-    raise "Couldn't find file #{d_filename}" unless File.exists?(d_full_path)
-    contents = File.readlines(d_full_path)
+  def self.get_defaults(temp_data, namelist, defaults_file = nil, whine = false)
+    # d_filename ||= namelist + '.defaults'
+    # d_full_path = Inlist.d_paths[namelist] + defaults_file
+    # raise "Couldn't find file #{d_filename}" unless File.exists?(d_full_path)
+    unless File.exists?(defaults_file)
+      raise "Couldn't find file #{defaults_file}"
+    end
+    # contents = File.readlines(d_full_path)
+    contents = File.readlines(defaults_file)
     contents.reject! { |line| is_comment?(line) or is_blank?(line) }
     contents.map! do |line|
       my_line = line.dup
@@ -638,8 +646,10 @@ class Inlist
 
   attr_accessor :data_hash
   attr_reader :names
-  def initialize
-    Inlist.get_data unless Inlist.have_data?
+  def initialize(use_star_as_fallback: true)
+    unless Inlist.have_data?
+      Inlist.get_data(use_star_as_fallback: use_star_as_fallback)
+    end
     @data = Inlist.inlist_data
     @data_hash = {}
     @data.each_value do |namelist_data|
