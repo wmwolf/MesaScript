@@ -18,11 +18,98 @@ class Inlist
     end
   end
 
+  def self.config_namelists(namelist: nil, source_files: nil,
+    defaults_file: nil)
+    if namelist.nil? || namelist.empty?
+      raise NamelistError.new("Must provide a namelist if reconfiguring.")
+    end
+    if source_file.nil? || source_file.empty?
+      raise NamelistError.new(
+        "Must provide a source file for namelist #{namelist}. For example, "+
+        "$MESA_DIR/star/private/star_job_controls.inc for star_job.")
+    end
+    # use downcased version of namelist as a symbol; only add if needed
+    namelist_sym = namelist.to_s.downcase.to_sym
+    @namelists << namelist_sym unless @namelists.include? namelist_sym
+
+    # set source files. There may be more than one, so we ALWAYS make it an
+    # array. Flatten magic allows for users to supply an array or a scalar
+    # (single string)
+    source_to_add = if source_file.respond_to? :map
+      source_file.map(&:to_s)
+    else
+      source_file
+    end
+    @source_files[namelist_sym] = [source_file].flatten if source_file
+
+    # set defaults file. This is limited to being scalar string for now.
+    @defaults_files[namelist_sym] = defaults_file.to_s if defaults_file
+  end
+
 
   @inlist_data = {}
   # Different namelists can be added or subtracted if MESA should change or
   # proprietary inlists are required. Later hashes should be edited in a
   # similar way to get the desired behavior for additional namelists.
+
+  @namelists = {}
+  @source_files = Hash.new([])
+  @defaults_files = {}
+
+  # short hand for adding star_job namelist using sensible defaults as of 10108
+  def self.add_star_job_defaults
+    self.config_namelists(
+      namelist: :star_job,
+      source_files: File.join(ENV['MESA_DIR'], 'star', 'private',
+                             'star_job_controls.inc'),
+      defaults_file: File.join(ENV['MESA_DIR'], 'star', 'defaults',
+                               'star_job.defaults')
+    )
+  end
+
+  # short hand for adding controls namelist using sensible defaults as of 10108
+  def self.add_controls_defaults
+    self.config_namelists(
+      namelist: :controls,
+      source_files: [File.join(ENV['MESA_DIR'], 'star', 'private',
+                               'star_controls.inc'),
+                     File.join(ENV['MESA_DIR'], 'star', 'private',
+                               "ctrls_io.#{f_end}")],
+      defaults_file: File.join(ENV['MESA_DIR'], 'star', 'defaults',
+                               'controls.defaults')
+    )
+  end
+
+  # short hand for adding pgstar namelist using sensible defaults as of 10108
+  def self.add_pgstar_defaults
+    self.config_namelists(
+      namelist: :pgstar,
+      source_files: File.join(ENV['MESA_DIR'], 'star', 'private',
+                              'pgstar_controls.inc'),
+      defaults_file: File.join(ENV['MESA_DIR'], 'star', 'defaults',
+                               'pgstar.defaults')
+    )
+  end
+
+  # short hand for adding binary_defaults namelist using sensible defaults as
+  # of 10108
+  def self.add_binary_defaults
+    self.config_namelists(
+      namelists: :binary_controls,
+      source_files: File.join(ENV['MESA_DIR'], 'binary', 'public', 
+                              'binary_controls.inc'),
+      defaults_file: File.join(ENV['MESA_DIR'], 'binary', 'defaults',
+                               'binary_controls.defaults')
+    )
+  end
+
+  # quickly add all three major namelists for star module (star_job, controls,
+  # and pgstar)
+  def self.add_star_defaults
+    self.add_star_job_defaults
+    self.add_controls_defaults
+    self.add_pgstar_defaults
+  end
 
   #################### ADD NEW NAMELISTS HERE ####################
   @namelists = %w{ binary_controls star_job controls pgstar }
@@ -70,8 +157,8 @@ class Inlist
   # Establish class instance variables
   class << self
     attr_accessor :have_data
-    attr_accessor :namelists, :nt_paths, :d_paths, :inlist_data, :d_files,
-                  :nt_files
+    attr_accessor :namelists, :source_files, :defaults_files, :inlist_data,
+                  :nt_paths, :d_paths, :d_files, :nt_files
   end
 
   # Generate methods for the Inlist class that set various namelist parameters.
@@ -654,3 +741,5 @@ class Inlist
   end
 
 end
+
+class NamelistError < Exception; end
