@@ -1,4 +1,4 @@
-require 'mesa_script'
+require_relative 'mesa_script/lib/mesa_script'
 
 # This script produces three inlists, named inlist_1, inlist_2, and inlist_3.
 # Each has a different value for the "mass" variable (in the code block below)
@@ -6,11 +6,15 @@ require 'mesa_script'
 # different LOGS directory name. Try running ('ruby mesa_test.rb') this and then
 # seeing if you understand how the output relates to the input.
 
-masses = [1,2,3]
+Inlist.add_star_job_defaults
+Inlist.add_controls_defaults
+Inlist.add_pgstar_defaults
+
+masses = [1, 2, 3]
 masses.each do |mass|
   Inlist.make_inlist('inlist_' + mass.to_s) do
     # Can set variables here. Really, any simple ruby should be fine here
-    log_title = "LOGS_" + mass.to_s
+    log_title = 'LOGS_' + mass.to_s
     log_directory log_title
 
     # Ordering of commands is irrelevant. Commands are automatically corralled

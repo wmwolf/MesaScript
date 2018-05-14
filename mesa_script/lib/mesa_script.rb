@@ -18,12 +18,28 @@ class Inlist
     end
   end
 
+  # these hold the names of the namelists as well as the locations of the
+  # fortran files that define their controls as well as the defaults files
+  # that define their default values and order in formatted inlists
+  @namelists = []
+  @source_files = Hash.new([])
+  @defaults_files = {}
+
+  # this holds the "guts"; control names, types, defaults, and orders
+  @inlist_data = {}
+
+  # used to turn on a namelist; need to provide namelist name as well as
+  # locations for source file (usually a .inc or .f90 file that defines
+  # allowable controls) and a defaults file (usually a .defaults file that
+  # lists all controls and their default values). Shorthand versions for
+  # the three common star namelists and the one common binary namelist are
+  # defined below for convenience
   def self.config_namelists(namelist: nil, source_files: nil,
     defaults_file: nil)
     if namelist.nil? || namelist.empty?
       raise NamelistError.new("Must provide a namelist if reconfiguring.")
     end
-    if source_file.nil? || source_file.empty?
+    if source_files.nil? || source_files.empty?
       raise NamelistError.new(
         "Must provide a source file for namelist #{namelist}. For example, "+
         "$MESA_DIR/star/private/star_job_controls.inc for star_job.")
@@ -35,26 +51,41 @@ class Inlist
     # set source files. There may be more than one, so we ALWAYS make it an
     # array. Flatten magic allows for users to supply an array or a scalar
     # (single string)
-    source_to_add = if source_file.respond_to? :map
-      source_file.map(&:to_s)
+    source_to_add = if source_files.respond_to? :map
+      source_files.map(&:to_s)
     else
-      source_file
+      source_files.to_s
     end
-    @source_files[namelist_sym] = [source_file].flatten if source_file
+    @source_files[namelist_sym] = [source_files].flatten if source_files
 
     # set defaults file. This is limited to being scalar string for now.
     @defaults_files[namelist_sym] = defaults_file.to_s if defaults_file
   end
 
+  # delete namelist and associated data
+  def self.delete_namelist(namelist)
+    found_something = false
+    @inlist_data[namelist].each do |datum|
+      if datum.is_arr
+        Inlist.delete_parentheses_method(datum)
+      else
+        Inlist.delete_regular_method(datum)
+      end
+    end
+    [namelists, source_files, defaults_files, inlist_data].each do |data|
+      found_something ||= data.delete(namelist.downcase.to_sym)
+    end
+    unless found_something
+      puts "WARNING: Attempting to delete namelist #{namelist} data, but it " +
+        "wasn't present in existing Inlist data. Nothing happened."
+    end
+    namelist
+  end
 
-  @inlist_data = {}
-  # Different namelists can be added or subtracted if MESA should change or
-  # proprietary inlists are required. Later hashes should be edited in a
-  # similar way to get the desired behavior for additional namelists.
-
-  @namelists = {}
-  @source_files = Hash.new([])
-  @defaults_files = {}
+  # Delete all namelists and associated data.
+  def self.delete_all_namelists
+    namelists.each { |namelist| self.remove_namelist(namelist) }
+  end
 
   # short hand for adding star_job namelist using sensible defaults as of 10108
   def self.add_star_job_defaults
@@ -111,42 +142,6 @@ class Inlist
     self.add_pgstar_defaults
   end
 
-  #################### ADD NEW NAMELISTS HERE ####################
-  # This is now done via config_namelists mechanism
-  # @namelists = %w{ binary_controls star_job controls pgstar }
-  ################## POINT TO .INC FILES HERE ####################
-  # @nt_files = {
-    # 'binary_controls' => %w{binary_controls.inc},
-    # 'star_job' => %w{star_job_controls.inc},
-    # 'controls' => %w{star_controls.inc},
-    # 'pgstar'   => %w{pgstar_controls.inc}
-  # }
-  # @nt_files['controls'] << "ctrls_io.#{f_end}"
-  # User can specify a custom name for a namelist defaults file. The default
-  # is simply the namelist name followed by '.defaults'
-
-  ################ POINT TO .DEFAULTS FILES HERE #################
-  # @d_files = {}
-
-  # User can add new paths to namelist default files through this hash
-
-  ############ GIVE PATHS TO .INC AND .DEF FILES HERE ###########
-  #@nt_paths = Hash.new(ENV['MESA_DIR'] + '/star/private/')
-  # @nt_paths = {
-    # 'binary_controls' => ENV['MESA_DIR'] + '/binary/public/',
-    # 'star_job' => ENV['MESA_DIR'] + '/star/private/',
-    # 'controls' => ENV['MESA_DIR'] + '/star/private/',
-    # 'pgstar'   => ENV['MESA_DIR'] + '/star/private/'
-  # }
-  #@d_paths = Hash.new(ENV['MESA_DIR'] + '/star/defaults/')
-  # @d_paths = {
-    # 'binary_controls' => ENV['MESA_DIR'] + '/binary/defaults/',
-    # 'star_job' => ENV['MESA_DIR'] + '/star/defaults/',
-    # 'controls' => ENV['MESA_DIR'] + '/star/defaults/',
-    # 'pgstar'   => ENV['MESA_DIR'] + '/star/defaults/'
-  # }
-  
-
 ############### NO MORE [SIMPLE] USER-CUSTOMIZABLE FEATURES BELOW ##############
 
   # This tells the class to initialize its structure if it hasn't already.
@@ -158,8 +153,7 @@ class Inlist
   # Establish class instance variables
   class << self
     attr_accessor :have_data
-    attr_accessor :namelists, :source_files, :defaults_files, :inlist_data,
-                  # :nt_paths, :d_paths, :d_files, :nt_files
+    attr_accessor :namelists, :source_files, :defaults_files, :inlist_data
   end
 
   # Generate methods for the Inlist class that set various namelist parameters.
@@ -233,54 +227,117 @@ class Inlist
   #        text_summary1_name
   
   def self.make_parentheses_method(datum)
-    name = datum.name
+    method_name = datum.name
     num_indices = datum.num_indices
-    define_method(name + '[]=') do|arg1, arg2|
+
+    # assignment array form
+    define_method(method_name + '[]=') do|arg1, arg2|
       if num_indices > 1
-        raise "First argument of #{name}[]= (part in brackets) must be an array with #{num_indices} indices since #{name} is a multi-dimensional array." unless (arg1.is_a?(Array) and arg1.length == num_indices)
+        unless (arg1.is_a?(Array) and arg1.length == num_indices)
+          raise "First argument of #{method_name}[]= (part in brackets) must "+
+                "be an array with #{num_indices} indices since #{method_name}"+
+                " is a multi-dimensional array." 
+        end
       end
-      self.flag_command(name)
-      self.data_hash[name].value[arg1] = arg2
+      self.flag_command(method_name)
+      self.data_hash[method_name].value[arg1] = arg2
     end
-    define_method(name + '[]') do |arg|
+
+    # de-referencing array form
+    define_method(method_name + '[]') do |arg|
       if num_indices > 1
-        raise "Argument of #{name}[] (part in brackets) must be an array with #{num_indices} indices since #{name} is a multi-dimensional array." unless (arg.is_a?(Array) and arg.length == num_indices)
+        unless (arg.is_a?(Array) and arg.length == num_indices)
+          raise "Argument of #{method_name}[] (part in brackets) must be an " +
+                "array with #{num_indices} indices since #{method_name} is a "+
+                "multi-dimensional array."
+        end
       end
-      self.flag_command(name)
-      self.data_hash[name].value[arg]
+      self.flag_command(method_name)
+      self.data_hash[method_name].value[arg]
     end
-    define_method(name) do |*args|
-      self.flag_command(name)
+
+    # imperative multi-purpose form
+    define_method(method_name) do |*args|
+      self.flag_command(method_name)
       case args.length
-      when 0 then self.data_hash[name].value
+      # just retrieve whole value (de-reference)
+      when 0 then self.data_hash[method_name].value
+      # just retrieve part of value (de-reference)
       when 1
         if num_indices > 1
-          raise "First argument of #{name} must be an array with #{num_indices} indices since #{name} is a multi-dimensional array OR must provide all indices as separate arguments." unless (args[0].is_a?(Array) and args[0].length == num_indices)
+          unless (args[0].is_a?(Array) and args[0].length == num_indices)          
+            raise "First argument of #{method_name} must be an array with " +
+                  "#{num_indices} indices since #{method_name} is a " +
+                  'multi-dimensional array OR must provide all indices as ' +
+                  'separate arguments.'
+          end
         end
-        self.data_hash[name].value[args[0]]  
+        self.data_hash[method_name].value[args[0]]
+      # might be trying to access or a multi-d array OR assign to an array.
       when 2
-        if num_indices == 1 and (not args[0].is_a?(Array))
-          self.data_hash[name].value[args[0]] = args[1]
-        elsif num_indices == 2 and (not args[0].is_a?(Array)) and args[1].is_a?(Fixnum)
-          self.data_hash[name].value[args]
+        # 1-D array with scalar value; simple assignement
+        if num_indices == 1 && (not args[0].is_a?(Array))
+          self.data_hash[method_name].value[args[0]] = args[1]
+        # 2-D array, de-reference single value (NOT AN ASSIGNMENT!)
+        elsif num_indices == 2 && (not args[0].is_a?(Array)) &&
+          args[1].is_a?(Integer)
+          self.data_hash[method_name].value[args]
+        # Multi-d array with first argument being an array, second a value to
+        # assign; simple assignment
         elsif num_indices > 1
-          raise "First argument of #{name} must be an array with #{num_indices} indices since #{name} is a multi-dimensional array OR must provide all indices as separate arguments." unless (args[0].is_a?(Array) and args[0].length == num_indices)
-          self.data_hash[name].value[args[0]] = args[1]
+          unless (args[0].is_a?(Array) && args[0].length == num_indices)
+            raise "First argument of #{method_name} must be an array with " +
+                  "#{num_indices} indices since #{method_name} is a " +
+                  'multi-dimensional array OR must provide all indices as ' +
+                  'separate arguments.'
+          end
+          self.data_hash[method_name].value[args[0]] = args[1]
+        # Can't parse... throw hands up.
         else
-          raise "First argument of #{name} must be an array with #{num_indices} indices since #{name} is a multi-dimensional array OR must provide all indices as separate arguments. The optional final argument is what the #{name} would be set to. Omission of this argument will simply flag #{name} to appear in the inlist."   
-        end 
-      when num_indices
-        self.data_hash[name].value[args]
+          raise "First argument of #{method_name} must be an array with " +
+                "#{num_indices} indices since #{method_name} is a " +
+                "multi-dimensional array OR must provide all indices as " +
+                'separate arguments. The optional final argument is what the '+
+                "#{method_name} would be set to. Omission of this argument " +
+                "will simply flag #{method_name} to appear in the inlist."   
+        end
+      # one more argument than number of indices; first n are location to be
+      # assigned, last one is value to be assigned
       when num_indices + 1
-        raise "Bad arguments for #{name}. Either provide an array of #{num_indices} indices for the first argument or provide each index in succession, optionally specifying the desired value for the last argument." if args[0].is_a?(Array)
-        self.data_hash[name].value[args[0..-2]] = args[-1]
+        if args[0].is_a?(Array)
+          raise "Bad arguments for #{method_name}. Either provide an array " +
+                "of #{num_indices} indices for the first argument or provide "+
+                'each index in succession, optionally specifying the desired '+
+                'value for the last argument.'
+        end
+        self.data_hash[method_name].value[args[0..-2]] = args[-1]
+      # same number of arguments as indices; assume we are de-referencing a 
+      # value
+      when num_indices then self.data_hash[method_name].value[args]
+      # give up... who knows what the user is doing?!
       else
-        raise "Wrong number of arguments for #{name}. Can provide zero arguments (just flag command), one argument (array of indices for multi-d array or one index for 1-d array), two arguments (array of indices/single index for multi-/1-d array and a new value for the value), #{num_indices} arguments where the elements themselves are the right indices (returns the specified element of the array), or #{num_indices + 1} arguments to set the specific value and return it."
+        raise "Wrong number of arguments for #{method_name}. Can provide " +
+              'zero arguments (just flag command), one argument (array of ' +
+              'indices for multi-d array or one index for 1-d array), two ' +
+              'arguments (array of indices/single index for multi-/1-d array '+
+              'and a new value for the value), #{num_indices} arguments ' +
+              'where the elements themselves are the right indices (returns ' +
+              "the specified element of the array), or #{num_indices + 1} " +
+              'arguments to set the specific value and return it.'
       end      
     end
-    alias_method name.downcase.to_sym, name.to_sym
-    alias_method (name.downcase + '[]').to_sym, (name + '[]').to_sym
-    alias_method (name.downcase + '[]=').to_sym, (name + '[]=').to_sym
+    alias_method method_name.downcase.to_sym, method_name.to_sym
+    alias_method((method_name.downcase + '[]').to_sym, 
+                 (method_name + '[]').to_sym)
+    alias_method((method_name.downcase + '[]=').to_sym,
+                 (method_name + '[]=').to_sym)
+  end
+
+  def self.delete_parentheses_method(datum)
+    base_name = datum.name
+    method_names = [base_name, base_name + '[]', base_name + '[]=']
+    alias_names = method_names.map(&:downcase)
+    [method_names, alias_names].flatten.uniq.each { |meth| remove_method(meth) }
   end
 
   # Two ways to access/change scalars. All methods will cause the data category
@@ -308,18 +365,25 @@ class Inlist
   # unflagged.
 
   def self.make_regular_method(datum)
-    name = datum.name
-    define_method(name) do |*args|
-      self.flag_command(name)
-      return self.data_hash[name].value if args.empty?
-      self.data_hash[name].value = args[0]
+    method_name = datum.name
+    define_method(method_name) do |*args|
+      self.flag_command(method_name)
+      return self.data_hash[method_name].value if args.empty?
+      self.data_hash[method_name].value = args[0]
     end
-    aliases = [(name + '=').to_sym,
-               (name.downcase + '=').to_sym,
-               name.downcase.to_sym]
-    aliases.each { |ali| alias_method ali, name.to_sym }
+    aliases = [(method_name + '=').to_sym,
+               (method_name.downcase + '=').to_sym,
+               method_name.downcase.to_sym]
+    aliases.each { |ali| alias_method ali, method_name.to_sym }
   end
 
+  def self.delete_regular_method(datum)
+    method_name = datum.name
+    aliases = [method_name + '=',
+               method_name.downcase + '=',
+               method_name.downcase]
+    [method_name, aliases].flatten.uniq.each { |meth| remove_method meth }
+  end
 
   # Ensure provided value's data type matches expected data type. Then convert
   # to string for printing to an inlist. If value is a string, change nothing
@@ -356,11 +420,15 @@ class Inlist
       "an int or float." unless value.is_a?(Integer) or value.is_a?(Float)
       return sprintf("%g", value).sub('e', 'd')
     elsif type == :type
-      puts "WARNING: 'type' values are currently unsupported (regarding #{name}) because your humble author has no idea what they look like in an inlist. You should tell him what to do at wmwolf@physics.ucsb.edu. Your input, #{value}, has been passed through to your inlist verbatim."
+      puts "WARNING: 'type' values are currently unsupported " +
+           "(regarding #{name}) because your humble author has no idea what " +
+           'they look like in an inlist. You should tell him what to do at ' +
+           "wmwolf@asu.edu. Your input, #{value}, has been passed through to "+
+           'your inlist verbatim.'
       return value.to_s
     else
-      raise "Error parsing value for namelist item #{name}: #{value}. Expected "
-            "type was #{type}."
+      raise "Error parsing value for namelist item #{name}: #{value}. " +
+            "Expected type was #{type}."
     end
   end
 
@@ -475,7 +543,7 @@ class Inlist
 
   def self.get_namelist_data(namelist, source_files = nil, defaults_file = nil)
     temp_data = Inlist.get_names_and_types(namelist, source_files)
-    Inlist.get_defaults(temp_data, namelist, defaults_files)
+    Inlist.get_defaults(temp_data, namelist, defaults_files[namelist])
   end
 
   def self.get_names_and_types(namelist, source_files = nil)
@@ -609,7 +677,10 @@ class Inlist
     end
     temp_data.each do |datum|
       unless n_d_hash.keys.include?(datum.name)
-        puts "WARNING: no default found for control #{datum.name}. Using standard defaults." if whine
+        if whine
+          puts "WARNING: no default found for control #{datum.name}. Using " +
+               'standard defaults.'
+        end
       end
       default = n_d_hash[datum.name]
       if default.is_a?(Hash) and datum.value.is_a?(Hash)
