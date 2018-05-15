@@ -444,42 +444,47 @@ class Inlist
   def self.parse_input(name, value, type)
     if value.class == String
       if type == :string
-        value = "'#{value}'" unless value[0] == "'" and value[-1] == "'"
+        value = "'#{value}'" unless value[0] == "'" && value[-1] == "'"
       end
-      return value
+      value
     elsif type == :bool
       unless [TrueClass, FalseClass].include?(value.class)
-        raise "Invalid value for namelist item #{name}: #{value}. Use " +
-        "'.true.', '.false.', or a Ruby boolean (true/false)."
+        raise "Invalid value for namelist item #{name}: #{value}. Use " \
+              "'.true.', '.false.', or a Ruby boolean (true/false)."
       end
       if value == true
-        return '.true.'
+        '.true.'
       elsif value == false
-        return '.false.'
+        '.false.'
       else
         raise "Error converting value #{value} of #{name} to a boolean."
       end
     elsif type == :int
-      raise "Invalid value for namelist item #{name}: #{value}. Must provide"+
-      " an int or float." unless value.is_a?(Integer) or value.is_a?(Float)
-      if value.is_a?(Float)
-        puts "WARNING: Expected integer for #{name} but got #{value}. Value" + 
-             " will be converted to an integer."
+      unless value.is_a?(Integer) || value.is_a?(Float)
+        raise "Invalid value for namelist item #{name}: #{value}. Must " \
+              'provide an int or float.'
       end
-      return value.to_i.to_s
+      if value.is_a?(Float)
+        puts "WARNING: Expected integer for #{name} but got #{value}. Value" \
+             ' will be converted to an integer.'
+      end
+      value.to_i.to_s
     elsif type == :float
-      raise "Invalid value for namelist item #{name}: #{value}. Must provide " +
-      "an int or float." unless value.is_a?(Integer) or value.is_a?(Float)
-      return sprintf("%g", value).sub('e', 'd')
+      unless value.is_a?(Integer) || value.is_a?(Float)
+        raise "Invalid value for namelist item #{name}: #{value}. Must "\
+              'provide an int or float.'
+      end
+      res = format('%g', value).sub('e', 'd')
+      res += 'd0' unless res.include?('d')
     elsif type == :type
-      puts "WARNING: 'type' values are currently unsupported " +
-           "(regarding #{name}) because your humble author has no idea what " +
-           'they look like in an inlist. You should tell him what to do at ' +
-           "wmwolf@asu.edu. Your input, #{value}, has been passed through to "+
+      puts "WARNING: 'type' values are currently unsupported " \
+           "(regarding #{name}) because your humble author has no idea what " \
+           'they look like in an inlist. You should tell him what to do at ' \
+           "wmwolf@asu.edu. Your input, #{value}, has been passed through to "\
            'your inlist verbatim.'
-      return value.to_s
+      value.to_s
     else
-      raise "Error parsing value for namelist item #{name}: #{value}. " +
+      raise "Error parsing value for namelist item #{name}: #{value}. " \
             "Expected type was #{type}."
     end
   end
