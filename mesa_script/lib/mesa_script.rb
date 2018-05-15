@@ -202,9 +202,7 @@ class Inlist
     # might need to add star data; preserves expected behavior (minus binary)
     Inlist.add_star_defaults if use_star_as_fallback && Inlist.namelists.empty?
     Inlist.namelists.each do |namelist|
-      @inlist_data[namelist] = Inlist.get_namelist_data(
-        namelist, Inlist.source_files[namelist], Inlist.defaults_files[namelist]
-      )
+      @inlist_data[namelist] = Inlist.get_namelist_data(namelist)
     end
     # create methods (interface) for each data category
     @inlist_data.each_value do |namelist_data|
@@ -476,6 +474,7 @@ class Inlist
       end
       res = format('%g', value).sub('e', 'd')
       res += 'd0' unless res.include?('d')
+      res
     elsif type == :type
       puts "WARNING: 'type' values are currently unsupported " \
            "(regarding #{name}) because your humble author has no idea what " \
@@ -496,7 +495,7 @@ class Inlist
   # clean up and re-order your inlist, but all comments will be lost. All other
   # information SHOULD remain intact.
   def self.inlist_to_mesascript(inlist_file, script_file, dbg = false)
-    Inlist.get_data unless Inlist.have_data       # ensure we have inlist data
+    Inlist.get_data unless Inlist.have_data # ensure we have inlist data
     inlist_contents = File.readlines(inlist_file)
 
     # make namelist separators comments
@@ -529,7 +528,7 @@ class Inlist
         command =~ /(\s*$)/                       # save buffer space
         buffer_space = Regexp.last_match(1)
         command.strip!                            # remove white space
-        name, value = command.split('=').map { |datum| datum.strip }
+        name, value = command.split('=').map(&:strip)
         if dbg
           puts "name: #{name}"
           puts "value: #{value}"
@@ -537,28 +536,28 @@ class Inlist
         if name =~ /\((\d+)\)/                    # fix 1D array assignments
           name.sub!('(', '[')
           name.sub!(')', ']')
-          name = name + ' ='
+          name += ' ='
         elsif name =~ /\((\s*\d+\s*,\s*)+\d\s*\)/ # fix multi-D arrays
           # arrays become hashes in MesaScript, so rather than having multiple
           # indices, the key becomes the array of indices themselves, hence
           # the double braces replacing single parentheses
-          name.sub!('(', '[[')          
+          name.sub!('(', '[[')
           name.sub!(')', ']]')
-          name = name + ' ='
+          name += ' ='
         end
         name.downcase!
-        if value =~ /'.*'/ or value =~ /".*"/
-          result = name + ' ' + value             # leave strings alone
-        elsif %w[.true. .false.].include?(value.downcase)
-          result = name + ' ' + value.downcase.gsub('.', '') # fix booleans
-        elsif value =~ /\d+\.?\d*([eEdD]\d+)?/
-          result = name + ' ' + value.downcase.sub('d', 'e') # fix floats
-        else
-          result = name + ' ' + value             # leave everything else alone
-        end
+        results = if value =~ /'.*'/ || value =~ /".*"/
+                    name + ' ' + value # leave strings alone
+                  elsif %w[.true. .false.].include?(value.downcase)
+                    name + ' ' + value.downcase.delete('.') # fix booleans
+                  elsif value =~ /\d+\.?\d*([eEdD]\d+)?/
+                    name + ' ' + value.downcase.sub('d', 'e') # fix floats
+                  else
+                    name + ' ' + value # leave everything else alone
+                  end
         result = leading_space + result + buffer_space + comment
         if dbg
-          puts "parsed to:"
+          puts 'parsed to:'
           puts result
           puts ''
         end
@@ -570,10 +569,9 @@ class Inlist
       f.puts ''
       f.puts "Inlist.make_inlist('#{File.basename(inlist_file)}') do"
       new_contents.each { |line| f.puts '  ' + line }
-      f.puts "end"
+      f.puts 'end'
     end
   end
-
 
   # Create an Inlist object, execute block of commands that presumably populate
   # the inlist, then write the inlist to a file with the given name. This is
@@ -598,30 +596,21 @@ class Inlist
   # belongs to, and its relative ordering in that namelist. Bogus defaults are
   # assigned according to the object's type, and the ordering is unknown.
 
-  def self.get_namelist_data(namelist, source_files = nil, defaults_file = nil)
-    temp_data = Inlist.get_names_and_types(namelist, source_files)
-    Inlist.get_defaults(temp_data, namelist, defaults_files[namelist])
+  def self.get_namelist_data(namelist)
+    temp_data = Inlist.get_names_and_types(namelist)
+    Inlist.get_defaults(temp_data, namelist)
   end
 
-  def self.get_names_and_types(namelist, source_files = nil)
-    source_files = Inlist.source_files[namelist]
-    # nt_filenames ||= Inlist.nt_files[namelist]
-    # unless nt_filenames.respond_to?(:each)
-    #   nt_filenames = [nt_filenames]
-    # end
-    # nt_full_paths = nt_filenames.map { |file| Inlist.nt_paths[namelist] + file }
-
+  def self.get_names_and_types(namelist)
     namelist_data = []
 
-    source_files.each do |source_file|
-      unless File.exists?(source_file)
-        raise "Couldn't find file #{source_file}"
-      end
+    source_files[namelist].each do |source_file|
+      raise "Couldn't find file #{source_file}" unless File.exist?(source_file)
       contents = File.readlines(source_file)
 
       # Throw out comments and blank lines, ensure remaining lines are a proper
       # Fortran assignment, then remove leading and trailing white space
-      contents.reject! { |line| is_comment?(line) or is_blank?(line) }
+      contents.reject! { |line| is_comment?(line) || is_blank?(line) }
       contents.map! do |line|
         my_line = line.dup
         my_line = my_line[0...my_line.index('!')] if has_comment?(my_line)
@@ -634,24 +623,24 @@ class Inlist
         full_lines << Inlist.full_line(contents, i)
       end
       pairs = full_lines.map do |line|
-        line.split('::').map { |datum| datum.strip}
+        line.split('::').map(&:strip)
       end
       pairs.each do |pair|
         type = case pair[0]
-        when /logical/ then :bool
-        when /character/ then :string
-        when /real/ then :float
-        when /integer/ then :int
-        when /type/ then :type
-        else
-          raise "Couldn't determine type of entry #{pair[0]} in " +
-                "#{source_file}."
-        end
+               when /logical/ then :bool
+               when /character/ then :string
+               when /real/ then :float
+               when /integer/ then :int
+               when /type/ then :type
+               else
+                 raise "Couldn't determine type of entry #{pair[0]} in " \
+                       "#{source_file}."
+               end
         name_chars = pair[1].split('')
         names = []
         paren_level = 0
         name_chars.each do |char|
-          if paren_level > 0 and char == ','
+          if paren_level > 0 && char == ','
             names << '!'
             next
           elsif char == '('
@@ -661,7 +650,7 @@ class Inlist
           end
           names << char
         end
-        names = names.join.split(',').map { |name| name.strip }
+        names = names.join.split(',').map(&:strip)
         names.each do |name|
           is_arr = false
           num_indices = 0
@@ -671,10 +660,9 @@ class Inlist
             name.sub!(/\(.*\)/, '')
           elsif pair[0] =~ /dimension\((.*)\)/i
             is_arr = true
-            num_indices = $1.count(',') + 1
+            num_indices = Regexp.last_match[1].count(',') + 1
           end
-          type_default = {:bool => false, :string => '', :float => 0.0,
-                          :int => 0}
+          type_default = { bool: false, string: '', float: 0.0, int: 0 }
           dft = is_arr ? Hash.new(type_default[type]) : type_default[type]
           namelist_data << InlistItem.new(name, type, dft, namelist, -1, is_arr,
                                           num_indices)
@@ -688,71 +676,85 @@ class Inlist
   # Inlist.get_names_and_types and assigns defaults and orders to each item.
   # Looks for this information in the specified defaults filename.
 
-  def self.get_defaults(temp_data, namelist, defaults_file = nil, whine = false)
-    # d_filename ||= namelist + '.defaults'
-    # d_full_path = Inlist.d_paths[namelist] + defaults_file
-    # raise "Couldn't find file #{d_filename}" unless File.exists?(d_full_path)
-    unless File.exists?(defaults_file)
+  def self.get_defaults(temp_data, namelist, whine = false)
+    defaults_file = defaults_files[namelist]
+    unless File.exist?(defaults_file)
       raise "Couldn't find file #{defaults_file}"
     end
-    # contents = File.readlines(d_full_path)
     contents = File.readlines(defaults_file)
-    contents.reject! { |line| is_comment?(line) or is_blank?(line) }
+    # throw out comments and blank lines
+    contents.reject! { |line| is_comment?(line) || is_blank?(line) }
+    # remaining lines should only be assignments. Only use the part of the line
+    # up to the comment character, then strip all whitespace
     contents.map! do |line|
       my_line = line.dup
-      if has_comment?(line)
-        my_line = my_line[0...my_line.index('!')]
+      my_line = my_line[0...my_line.index('!')] if has_comment?(line)
+      unless my_line =~ /=/
+        raise "Equal sign missing in line:\n\t #{my_line}\n in file " \
+              "#{full_path}."
       end
-      raise "Equal sign missing in line:\n\t #{my_line}\n in file " +
-        "#{full_path}." unless my_line =~ /=/
       my_line.strip!
     end
-    pairs = contents.map {|line| line.split('=').map {|datum| datum.strip}}
-    n_d_hash = {}
-    n_o_hash = {}
+    # divide lines into two element arrays: name and value
+    pairs = contents.map { |line| line.split('=').map(&:strip) }
+    n_d_hash = {} # maps names to default values
+    n_o_hash = {} # maps names to default order in inlist
     pairs.each_with_index do |pair, i|
       name = pair[0]
       default = pair[1]
+      # look for parentheses in name, indicating an array
       if name =~ /\(.*\)/
+        # make selector be the stuff in the parentheses
         selector = name[/\(.*\)/][1..-2]
+        # make name just be the part without parentheses
         name.sub!(/\(.*\)/, '')
+        # colon indicates mass assignment
         if selector.include?(':')
           default = Hash.new(default)
-        elsif selector.count(',') == 0
-          default = {selector.to_i => default}
+        # lack of a comma indicates dimension = 1
+        elsif selector.count(',').zero?
+          default = { selector.to_i => default }
+        # at least one comma, so dimension > 1
         else
+          # reformat the selector (now a key in the default hash) to an
+          # array of integers
           selector = selector.split(',').map { |index| index.strip.to_i }
-          default = default = {selector => default}
+          default = { selector => default }
         end
       end
+      # if the default value is a hash, we probably don't have every possible
+      # value, so just merge scraped values with the automatically chosen
+      # defaults
       if n_d_hash[name].is_a?(Hash)
         n_d_hash[name].merge!(default)
+      # scalar values get a simple assignment
       else
         n_d_hash[name] = default
       end
+      # order is just the same as the order it appeared in its defaults file
       n_o_hash[name] ||= i
     end
     temp_data.each do |datum|
-      unless n_d_hash.keys.include?(datum.name)
+      unless n_d_hash.key?(datum.name)
         if whine
-          puts "WARNING: no default found for control #{datum.name}. Using " +
+          puts "WARNING: no default found for control #{datum.name}. Using " \
                'standard defaults.'
         end
       end
       default = n_d_hash[datum.name]
-      if default.is_a?(Hash) and datum.value.is_a?(Hash)
-        datum.value = datum.value.merge(default)
-      else
-        datum.value = default || datum.value
-      end
+      datum.value = if default.is_a?(Hash) && datum.value.is_a?(Hash)
+                      datum.value.merge(default)
+                    else
+                      default || datum.value
+                    end
       datum.order = n_o_hash[datum.name] || datum.order
     end
     temp_data
   end
 
-  def self.full_line(lines, i)
-    return lines[i] unless lines[i][-1] == '&'
-    [lines[i].sub('&', ''), full_line(lines, i+1)].join(' ')
+  def self.full_line(lines, indx)
+    return lines[indx] unless lines[indx][-1] == '&'
+    [lines[indx].sub('&', ''), full_line(lines, indx + 1)].join(' ')
   end
 
   def self.is_comment?(line)
@@ -783,7 +785,6 @@ class Inlist
     @data.each_value do |namelist_data|
       namelist_data.each do |datum|
         @data_hash[datum.name] = datum.dup
-
       end
     end
     @names = @data_hash.keys
@@ -808,7 +809,7 @@ class Inlist
   def flag_command(name)
     @data_hash[name].flagged = true
   end
-  
+
   def unflag_command(name)
     @data_hash[name].flagged = false
   end
@@ -818,21 +819,22 @@ class Inlist
     if datum.is_arr
       lines = @data_hash[name].value.keys.map do |key|
         prefix = "  #{datum.name}("
-        suffix = ") = " + 
-        Inlist.parse_input(datum.name, datum.value[key], datum.type) + "\n"
-        if key.respond_to?(:inject)
-          indices = key[1..-1].inject(key[0].to_s) do |res, elt| 
-            "#{res}, #{elt}"
-          end
-        else
-          indices = key.to_s
-        end
+        suffix = ') = ' +
+                 Inlist.parse_input(datum.name, datum.value[key], datum.type) +
+                 "\n"
+        indices = if key.respond_to?(:inject)
+                    key[1..-1].inject(key[0].to_s) do |res, elt| 
+                      "#{res}, #{elt}"
+                    end
+                  else
+                    key.to_s
+                  end
         prefix + indices + suffix
       end
       lines = lines.join
       @to_write[datum.namelist][datum.order] = lines
     else
-      @to_write[datum.namelist][datum.order] =  "  " + datum.name + ' = ' +
+      @to_write[datum.namelist][datum.order] = '  ' + datum.name + ' = ' +
                 Inlist.parse_input(datum.name, datum.value, datum.type) + "\n"
     end
   end
@@ -853,13 +855,13 @@ class Inlist
     # blank lines between disparate data
     namelists.each do |namelist|
       @to_write[namelist].each_index do |i|
-        next if (i == 0 or i == @to_write[namelist].size - 1)
+        next if [0, @to_write[namelist].size - 1].include? i
         this_line = @to_write[namelist][i]
-        prev_line = @to_write[namelist][i-1]
-      
+        prev_line = @to_write[namelist][i - 1]
+
         this_line = '' if this_line.nil?
         prev_line = '' if prev_line.nil?
-        if this_line.empty? and not(prev_line.empty? or prev_line == "\n")
+        if this_line.empty? && !(prev_line.empty? || prev_line == "\n")
           @to_write[namelist][i] = "\n"
         end
       end
@@ -872,12 +874,11 @@ class Inlist
     result = ''
     namelists.each do |namelist|
       result += "\n&#{namelist}\n"
-      result += @to_write[namelist].join("")
+      result += @to_write[namelist].join('')
       result += "\n/ ! end of #{namelist} namelist\n"
     end
     result.sub("\n\n\n", "\n\n")
   end
-
 end
 
 class NamelistError < Exception; end
