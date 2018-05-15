@@ -6,8 +6,13 @@ require_relative 'mesa_script/lib/mesa_script'
 # different LOGS directory name. Try running ('ruby mesa_test.rb') this and then
 # seeing if you understand how the output relates to the input.
 
-Inlist.add_star_defaults
-Inlist.get_data
+# customizing what namelists are in use
+# Inlist.add_star_defaults # adds star_job, controls, and pgstar
+# Inlist.add_star_job_defaults # just load star_job data
+# Inlist.add_controls_defaults # just load controls data
+# Inlist.add_pgstar_defaults   # just load pgstar data
+# Inlist.add_binary_defaults   # just add binary_controls datad
+# Inlist.delete_namelist('controls') # remove controls data
 
 masses = [1, 2, 3]
 masses.each do |mass|
@@ -24,7 +29,7 @@ masses.each do |mass|
     # separate.
     mass_change 1e-7
     load_saved_model true
-    saved_model_name "test_#{mass.to_s}.mod"
+    saved_model_name "test_#{mass}.mod"
 
     # Inlist methods are case-insensitive (in that lower-case is ALWAYS ok)
     # That is, method names can be invoked as they appear in the .inc or

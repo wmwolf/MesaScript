@@ -35,11 +35,18 @@ class Inlist
   # lists all controls and their default values). Shorthand versions for
   # the three common star namelists and the one common binary namelist are
   # defined below for convenience
-  def self.config_namelists(namelist: nil, source_files: nil,
-                            defaults_file: nil)
-    add_namelist(namelist)
-    set_source_files(namelist, source_files)
-    set_defaults_file(namelist, defaults_file)
+  def self.config_namelist(namelist: nil, source_files: nil,
+                           defaults_file: nil, verbose: true)
+    new_namelist = namelist_sym(namelist)
+    add_namelist(new_namelist)
+    set_source_files(new_namelist, source_files)
+    set_defaults_file(new_namelist, defaults_file)
+    return unless verbose
+    puts 'Added the following namelist data:'
+    puts "  namelist: #{new_namelist}"
+    puts "    source: #{@source_files[new_namelist].join(', ')}"
+    puts "  defaults: #{@defaults_files[namelist_sym(namelist)]}"
+    puts "Did not load data yet, though.\n\n"
   end
 
   def self.add_namelist(new_namelist)
@@ -74,73 +81,94 @@ class Inlist
     @defaults_files[namelist_sym(namelist)] = new_defaults_file.to_s
   end
 
+  # Delete all namelists and associated data.
+  def self.delete_all_namelists
+    namelists.each { |namelist| remove_namelist(namelist) }
+    @have_data = false
+  end
 
   # delete namelist and associated data
   def self.delete_namelist(namelist)
-    found_something = false
-    @inlist_data[namelist].each do |datum|
-      if datum.is_arr
-        Inlist.delete_parentheses_method(datum)
-      else
-        Inlist.delete_regular_method(datum)
-      end
-    end
-    [namelists, source_files, defaults_files, inlist_data].each do |data|
-      found_something ||= data.delete(namelist.downcase.to_sym)
-    end
+    to_delete = namelist_sym(namelist)
+    found_something = namelists.delete(to_delete)
+    found_something = delete_files(to_delete) || found_something
+    # this also undefines methods
+    found_something = delete_data(to_delete) || found_something
     unless found_something
-      puts "WARNING: Attempting to delete namelist #{namelist} data, but it " +
-        "wasn't present in existing Inlist data. Nothing happened."
+      puts "WARNING: Attempting to delete namelist #{namelist} data, but it " \
+           "wasn't present in existing Inlist data. Nothing happened."
     end
     namelist
   end
 
-  # Delete all namelists and associated data.
-  def self.delete_all_namelists
-    namelists.each { |namelist| self.remove_namelist(namelist) }
+  # just remove associated source and defaults files; don't touch underlying
+  # data or methods (if any exist yet)
+  def self.delete_files(namelist)
+    found_something = false
+    [source_files, defaults_files].each do |files|
+      found_something ||= files.delete(namelist_sym(namelist))
+    end
+    found_something
+  end
+
+  # see if data has been loaded, and if it has, delete all the methods
+  # associated with it and then wipe the data, too.
+  def self.delete_data(namelist)
+    to_delete = namelist_sym(namelist)
+    return false unless inlist_data.include? namelist_sym(to_delete)
+    delete_methods(to_delete)
+    inlist_data.delete(to_delete)
+  end
+
+  # just delete the methods. This will throw errors if they don't exist
+  def self.delete_methods(namelist)
+    @inlist_data[namelist_sym(namelist)].each { |datum| delete_method(datum) }
   end
 
   # short hand for adding star_job namelist using sensible defaults as of 10108
-  def self.add_star_job_defaults
-    self.config_namelists(
+  def self.add_star_job_defaults(verbose: false)
+    config_namelist(
       namelist: :star_job,
       source_files: File.join(ENV['MESA_DIR'], 'star', 'private',
-                             'star_job_controls.inc'),
+                              'star_job_controls.inc'),
       defaults_file: File.join(ENV['MESA_DIR'], 'star', 'defaults',
-                               'star_job.defaults')
+                               'star_job.defaults'),
+      verbose: verbose
     )
   end
 
   # short hand for adding controls namelist using sensible defaults as of 10108
-  def self.add_controls_defaults
-    self.config_namelists(
+  def self.add_controls_defaults(verbose: false)
+    config_namelist(
       namelist: :controls,
       source_files: [File.join(ENV['MESA_DIR'], 'star', 'private',
                                'star_controls.inc'),
                      File.join(ENV['MESA_DIR'], 'star', 'private',
                                "ctrls_io.#{f_end}")],
       defaults_file: File.join(ENV['MESA_DIR'], 'star', 'defaults',
-                               'controls.defaults')
+                               'controls.defaults'),
+      verbose: verbose
     )
   end
 
   # short hand for adding pgstar namelist using sensible defaults as of 10108
-  def self.add_pgstar_defaults
-    self.config_namelists(
+  def self.add_pgstar_defaults(verbose: false)
+    config_namelist(
       namelist: :pgstar,
       source_files: File.join(ENV['MESA_DIR'], 'star', 'private',
                               'pgstar_controls.inc'),
       defaults_file: File.join(ENV['MESA_DIR'], 'star', 'defaults',
-                               'pgstar.defaults')
+                               'pgstar.defaults'),
+      verbose: verbose
     )
   end
 
   # short hand for adding binary_defaults namelist using sensible defaults as
   # of 10108
   def self.add_binary_defaults
-    self.config_namelists(
+    config_namelist(
       namelists: :binary_controls,
-      source_files: File.join(ENV['MESA_DIR'], 'binary', 'public', 
+      source_files: File.join(ENV['MESA_DIR'], 'binary', 'public',
                               'binary_controls.inc'),
       defaults_file: File.join(ENV['MESA_DIR'], 'binary', 'defaults',
                                'binary_controls.defaults')
@@ -150,9 +178,9 @@ class Inlist
   # quickly add all three major namelists for star module (star_job, controls,
   # and pgstar)
   def self.add_star_defaults
-    self.add_star_job_defaults
-    self.add_controls_defaults
-    self.add_pgstar_defaults
+    add_star_job_defaults
+    add_controls_defaults
+    add_pgstar_defaults
   end
 
 ############### NO MORE [SIMPLE] USER-CUSTOMIZABLE FEATURES BELOW ##############
@@ -174,27 +202,38 @@ class Inlist
     # might need to add star data; preserves expected behavior (minus binary)
     Inlist.add_star_defaults if use_star_as_fallback && Inlist.namelists.empty?
     Inlist.namelists.each do |namelist|
-      @inlist_data[namelist] = Inlist.get_namelist_data(namelist,
-        Inlist.source_files[namelist], Inlist.defaults_files[namelist])
+      @inlist_data[namelist] = Inlist.get_namelist_data(
+        namelist, Inlist.source_files[namelist], Inlist.defaults_files[namelist]
+      )
     end
     # create methods (interface) for each data category
     @inlist_data.each_value do |namelist_data|
-      namelist_data.each do |datum|
-        if datum.is_arr
-          Inlist.make_parentheses_method(datum)
-        else
-          Inlist.make_regular_method(datum)
-        end
-      end
+      namelist_data.each { |datum| Inlist.make_method(datum) }
     end
     # don't do this nonsense again unles specifically told to do so
     Inlist.have_data = true
   end
 
+  def self.make_method(datum)
+    if datum.is_arr
+      Inlist.make_parentheses_method(datum)
+    else
+      Inlist.make_regular_method(datum)
+    end
+  end
+
+  def self.delete_method(datum)
+    if datum.is_arr
+      Inlist.delete_parentheses_method(datum)
+    else
+      Inlist.delete_regular_method(datum)
+    end
+  end
+
   # Three ways to access array categories. All methods will cause the
   # data category to be staged into your inlist, even if you do not change it
   # Basically, if it appears in your mesascript, it will definitely appear
-  # in your inlist. A command can be unflagged by calling 
+  # in your inlist. A command can be unflagged by calling
   # `unflag_command('COMMAND_NAME')` where COMMAND_NAME is the case-sensitive
   # name of the command to be unflagged.
   #
@@ -214,19 +253,19 @@ class Inlist
   #        xa_lower_limit_species(1, 'h1')    # flags and sets value 1
   #        xa_lower_limit_species 1, 'h1'     # same
   #
-  # For multi-dimensional arrays, things are even more vaired. You can treat 
+  # For multi-dimensional arrays, things are even more vaired. You can treat
   # them like 1-dimensional arrays with the "index" just being an array of
   # indices, for instance:
-  # 
+  #
   #        text_summary1_name[[1,2]] = 'star_mass' # flags ALL values and sets
   #        text_summary1_name([1,2], 'star_mass')  # text_summary1_name(1,2)
   #        text_summary1_name [1,2], 'star_mass    # to 'star_mass'
   #
-  #        text_summary1_name [1,2]                # flags ALL values and 
-  #        text_summary1_name([1,2])               # returns 
+  #        text_summary1_name [1,2]                # flags ALL values and
+  #        text_summary1_name([1,2])               # returns
   #                                                # text_sumarry_name(1,2)
-  # 
-  #        text_summary_name()                     # flags ALL values and 
+  #
+  #        text_summary_name()                     # flags ALL values and
   #        text_summary_name                       # returns entire hash for
   #                                                # text_summary_name
   #
@@ -236,111 +275,111 @@ class Inlist
   #
   #        text_summary1_name(1, 2, 'star_mass')
   #        text_summary1_name 1, 2, 'star_mass'    # same as above (first 3)
-  #        
+  #
   #        text_summary1_name
-  
+
   def self.make_parentheses_method(datum)
     method_name = datum.name
     num_indices = datum.num_indices
 
     # assignment array form
-    define_method(method_name + '[]=') do|arg1, arg2|
+    define_method(method_name + '[]=') do |arg1, arg2|
       if num_indices > 1
-        unless (arg1.is_a?(Array) and arg1.length == num_indices)
-          raise "First argument of #{method_name}[]= (part in brackets) must "+
-                "be an array with #{num_indices} indices since #{method_name}"+
-                " is a multi-dimensional array." 
+        unless arg1.is_a?(Array) && arg1.length == num_indices
+          raise "First argument of #{method_name}[]= (part in brackets) must "\
+                "be an array with #{num_indices} indices since #{method_name}"\
+                ' is a multi-dimensional array.'
         end
       end
-      self.flag_command(method_name)
-      self.data_hash[method_name].value[arg1] = arg2
+      flag_command(method_name)
+      data_hash[method_name].value[arg1] = arg2
     end
 
     # de-referencing array form
     define_method(method_name + '[]') do |arg|
       if num_indices > 1
-        unless (arg.is_a?(Array) and arg.length == num_indices)
-          raise "Argument of #{method_name}[] (part in brackets) must be an " +
-                "array with #{num_indices} indices since #{method_name} is a "+
-                "multi-dimensional array."
+        unless arg.is_a?(Array) && arg.length == num_indices
+          raise "Argument of #{method_name}[] (part in brackets) must be an " \
+                "array with #{num_indices} indices since #{method_name} is a "\
+                'multi-dimensional array.'
         end
       end
-      self.flag_command(method_name)
-      self.data_hash[method_name].value[arg]
+      flag_command(method_name)
+      data_hash[method_name].value[arg]
     end
 
     # imperative multi-purpose form
     define_method(method_name) do |*args|
-      self.flag_command(method_name)
+      flag_command(method_name)
       case args.length
       # just retrieve whole value (de-reference)
-      when 0 then self.data_hash[method_name].value
+      when 0 then data_hash[method_name].value
       # just retrieve part of value (de-reference)
       when 1
         if num_indices > 1
-          unless (args[0].is_a?(Array) and args[0].length == num_indices)          
-            raise "First argument of #{method_name} must be an array with " +
-                  "#{num_indices} indices since #{method_name} is a " +
-                  'multi-dimensional array OR must provide all indices as ' +
+          unless args[0].is_a?(Array) && args[0].length == num_indices
+            raise "First argument of #{method_name} must be an array with " \
+                  "#{num_indices} indices since #{method_name} is a " \
+                  'multi-dimensional array OR must provide all indices as ' \
                   'separate arguments.'
           end
         end
-        self.data_hash[method_name].value[args[0]]
+        data_hash[method_name].value[args[0]]
       # might be trying to access or a multi-d array OR assign to an array.
       when 2
         # 1-D array with scalar value; simple assignement
-        if num_indices == 1 && (not args[0].is_a?(Array))
-          self.data_hash[method_name].value[args[0]] = args[1]
+        if num_indices == 1 && !args[0].is_a?(Array)
+          data_hash[method_name].value[args[0]] = args[1]
         # 2-D array, de-reference single value (NOT AN ASSIGNMENT!)
-        elsif num_indices == 2 && (not args[0].is_a?(Array)) &&
-          args[1].is_a?(Integer)
-          self.data_hash[method_name].value[args]
+        elsif num_indices == 2 && !args[0].is_a?(Array) &&
+              args[1].is_a?(Integer)
+          data_hash[method_name].value[args]
         # Multi-d array with first argument being an array, second a value to
         # assign; simple assignment
         elsif num_indices > 1
-          unless (args[0].is_a?(Array) && args[0].length == num_indices)
-            raise "First argument of #{method_name} must be an array with " +
-                  "#{num_indices} indices since #{method_name} is a " +
-                  'multi-dimensional array OR must provide all indices as ' +
+          unless args[0].is_a?(Array) && args[0].length == num_indices
+            raise "First argument of #{method_name} must be an array with " \
+                  "#{num_indices} indices since #{method_name} is a " \
+                  'multi-dimensional array OR must provide all indices as ' \
                   'separate arguments.'
           end
-          self.data_hash[method_name].value[args[0]] = args[1]
+          data_hash[method_name].value[args[0]] = args[1]
         # Can't parse... throw hands up.
         else
-          raise "First argument of #{method_name} must be an array with " +
-                "#{num_indices} indices since #{method_name} is a " +
-                "multi-dimensional array OR must provide all indices as " +
-                'separate arguments. The optional final argument is what the '+
-                "#{method_name} would be set to. Omission of this argument " +
-                "will simply flag #{method_name} to appear in the inlist."   
+          raise "First argument of #{method_name} must be an array with "\
+                "#{num_indices} indices since #{method_name} is a "\
+                'multi-dimensional array OR must provide all indices as '\
+                'separate arguments. The optional final argument is what the '\
+                "#{method_name} would be set to. Omission of this argument "\
+                "will simply flag #{method_name} to appear in the inlist."
         end
       # one more argument than number of indices; first n are location to be
       # assigned, last one is value to be assigned
       when num_indices + 1
         if args[0].is_a?(Array)
-          raise "Bad arguments for #{method_name}. Either provide an array " +
-                "of #{num_indices} indices for the first argument or provide "+
-                'each index in succession, optionally specifying the desired '+
+          raise "Bad arguments for #{method_name}. Either provide an array " \
+                "of #{num_indices} indices for the first argument or provide "\
+                'each index in succession, optionally specifying the desired '\
                 'value for the last argument.'
         end
-        self.data_hash[method_name].value[args[0..-2]] = args[-1]
-      # same number of arguments as indices; assume we are de-referencing a 
+        data_hash[method_name].value[args[0..-2]] = args[-1]
+      # same number of arguments as indices; assume we are de-referencing a
       # value
-      when num_indices then self.data_hash[method_name].value[args]
+      when num_indices then data_hash[method_name].value[args]
       # give up... who knows what the user is doing?!
       else
-        raise "Wrong number of arguments for #{method_name}. Can provide " +
-              'zero arguments (just flag command), one argument (array of ' +
-              'indices for multi-d array or one index for 1-d array), two ' +
-              'arguments (array of indices/single index for multi-/1-d array '+
-              'and a new value for the value), #{num_indices} arguments ' +
-              'where the elements themselves are the right indices (returns ' +
-              "the specified element of the array), or #{num_indices + 1} " +
+        raise "Wrong number of arguments for #{method_name}. Can provide " \
+              'zero arguments (just flag command), one argument (array of ' \
+              'indices for multi-d array or one index for 1-d array), two ' \
+              'arguments (array of indices/single index for multi-/1-d array '\
+              'and a new value for the value), #{num_indices} arguments ' \
+              'where the elements themselves are the right indices (returns ' \
+              "the specified element of the array), or #{num_indices + 1} " \
               'arguments to set the specific value and return it.'
-      end      
+      end
     end
     alias_method method_name.downcase.to_sym, method_name.to_sym
-    alias_method((method_name.downcase + '[]').to_sym, 
+    alias_method((method_name.downcase + '[]').to_sym,
                  (method_name + '[]').to_sym)
     alias_method((method_name.downcase + '[]=').to_sym,
                  (method_name + '[]=').to_sym)
@@ -356,7 +395,7 @@ class Inlist
   # Two ways to access/change scalars. All methods will cause the data category
   # to be staged into your inlist, even if you do not change the value.
   # Basically, if it appears in your mesascript, it will definitely appear in
-  # your inlist. 
+  # your inlist.
   #
   # 1. Change value, like
   #        initial_mass(1.0)
@@ -373,7 +412,7 @@ class Inlist
   #    traditional for ruby (why do you want empty parentheses anyway?). Returns
   #    current value.
   #
-  # A command can be unflagged by calling `unflag_command('COMMAND_NAME')` 
+  # A command can be unflagged by calling `unflag_command('COMMAND_NAME')`
   # where COMMAND_NAME is the case-sensitive name of the command to be
   # unflagged.
 
