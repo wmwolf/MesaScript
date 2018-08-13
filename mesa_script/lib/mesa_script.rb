@@ -167,7 +167,7 @@ class Inlist
   # of 10108
   def self.add_binary_defaults
     config_namelist(
-      namelists: :binary_controls,
+      namelist: :binary_controls,
       source_files: File.join(ENV['MESA_DIR'], 'binary', 'public',
                               'binary_controls.inc'),
       defaults_file: File.join(ENV['MESA_DIR'], 'binary', 'defaults',
