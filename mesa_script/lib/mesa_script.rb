@@ -165,13 +165,27 @@ class Inlist
 
   # short hand for adding binary_defaults namelist using sensible defaults as
   # of 10108
-  def self.add_binary_defaults
+  def self.add_binary_controls_defaults(verbose: false)
     config_namelist(
       namelist: :binary_controls,
       source_files: File.join(ENV['MESA_DIR'], 'binary', 'public',
                               'binary_controls.inc'),
       defaults_file: File.join(ENV['MESA_DIR'], 'binary', 'defaults',
-                               'binary_controls.defaults')
+                               'binary_controls.defaults'),
+      verbose: verbose
+    )
+  end
+
+  # short hand for adding binary_defaults namelist using sensible defaults as
+  # of 10108
+  def self.add_binary_job_defaults(verbose: false)
+    config_namelist(
+      namelist: :binary_job,
+      source_files: File.join(ENV['MESA_DIR'], 'binary', 'private',
+                              'binary_job_controls.inc'),
+      defaults_file: File.join(ENV['MESA_DIR'], 'binary', 'defaults',
+                               'binary_job.defaults'),
+      verbose: verbose
     )
   end
 
@@ -181,6 +195,11 @@ class Inlist
     add_star_job_defaults
     add_controls_defaults
     add_pgstar_defaults
+  end
+
+  def self.add_binary_defaults
+    add_binary_job_defaults
+    add_binary_controls_defaults
   end
 
 ############### NO MORE [SIMPLE] USER-CUSTOMIZABLE FEATURES BELOW ##############
