@@ -270,14 +270,16 @@ or even more succinctly,
 ```ruby
 Inlist.add_star_defaults
 ```
-which does all three in one go. The most common bonus namelist you might also
-want is the `binary_controls` namelist, which there is a shortcut for as well:
-`Inlist.add_binary_defaults`. Note, though, that at least one command
-(`log_directory`) is present in both `controls` and `binary_controls`, so
-MesaScript will fail to execute one of them as it will only register the control
-as belonging to one namelist. There is no guarantee that more controls won't
-have name collisions in the future other than isolating which namelists are
-read in.
+which does all three in one go. The most common bonus namelists you might also
+want are the `binary_job` and `binary_controls` namelists, which have their own
+shortcuts as well: `Inlist.add_binary_job` and 
+`Inlist.add_binary_controls_defaults` (and the more succinct
+`Inlist.add_binary_defaults` to do both). Note, though, that at least one
+command (`log_directory`) is present in both `controls` and `binary_controls`,
+so MesaScript will fail to execute one of them as it will only register the
+control as belonging to one namelist. There is no guarantee that more controls
+won't have name collisions in the future other than isolating which namelists
+are read in.
 
 If you don't specify any extra namelists (99% of use cases), it just defaults
 to reading in the three main `star` namelists.

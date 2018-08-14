@@ -163,8 +163,8 @@ class Inlist
     )
   end
 
-  # short hand for adding binary_defaults namelist using sensible defaults as
-  # of 10108
+  # short hand for adding binary_controls_defaults namelist using sensible
+  # defaults as of 10108
   def self.add_binary_controls_defaults(verbose: false)
     config_namelist(
       namelist: :binary_controls,
@@ -176,8 +176,8 @@ class Inlist
     )
   end
 
-  # short hand for adding binary_defaults namelist using sensible defaults as
-  # of 10108
+  # short hand for adding binary_job_defaults namelist using sensible defaults
+  # as of 10108
   def self.add_binary_job_defaults(verbose: false)
     config_namelist(
       namelist: :binary_job,
@@ -197,6 +197,8 @@ class Inlist
     add_pgstar_defaults
   end
 
+  # quickly add both major namelists for binary module (binary_job and
+  # binary_controls)
   def self.add_binary_defaults
     add_binary_job_defaults
     add_binary_controls_defaults
