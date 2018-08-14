@@ -567,7 +567,7 @@ class Inlist
           name += ' ='
         end
         name.downcase!
-        results = if value =~ /'.*'/ || value =~ /".*"/
+        result = if value =~ /'.*'/ || value =~ /".*"/
                     name + ' ' + value # leave strings alone
                   elsif %w[.true. .false.].include?(value.downcase)
                     name + ' ' + value.downcase.delete('.') # fix booleans

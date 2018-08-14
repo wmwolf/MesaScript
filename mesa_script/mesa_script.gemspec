@@ -1,8 +1,8 @@
 Gem::Specification.new do |s|
   s.name = 'mesa_script'
-  s.version = '0.1.8'
+  s.version = '0.1.9'
   s.authors = ['William Wolf']
-  s.date = '2018-08-13'
+  s.date = '2018-08-14'
   s.description = 'MesaScript - a DSL for making dynamic inlists for the MESA '\
                   'stellar evolution code.'
   s.summary = <<-LONGDESC
