@@ -7,12 +7,16 @@ require_relative 'mesa_script/lib/mesa_script'
 # seeing if you understand how the output relates to the input.
 
 # customizing what namelists are in use
-# Inlist.add_star_defaults # adds star_job, controls, and pgstar
-# Inlist.add_star_job_defaults # just load star_job data
-# Inlist.add_controls_defaults # just load controls data
-# Inlist.add_pgstar_defaults   # just load pgstar data
-# Inlist.add_binary_defaults   # just add binary_controls datad
-# Inlist.delete_namelist('controls') # remove controls data
+# Inlist.add_star_defaults              # adds star_job, controls, and pgstar
+# Inlist.add_star_job_defaults          # just load star_job data
+# Inlist.add_controls_defaults          # just load controls data
+# Inlist.add_pgstar_defaults            # just load pgstar data
+
+# Inlist.add_binary_defaults            # adds binary_job and binary_controls
+# Inlist.add_binary_job_defaults        # just add binary_job data
+# Inlist.add_binary_controls_defaults   # just add binary_controls data
+
+# Inlist.delete_namelist('controls')    # remove controls data
 
 masses = [1, 2, 3]
 masses.each do |mass|
