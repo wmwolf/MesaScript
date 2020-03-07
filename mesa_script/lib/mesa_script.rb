@@ -19,6 +19,15 @@ class Inlist
     end
   end
 
+  # Determine proper file location for star-related .inc files
+  def self.star_or_star_data
+    if Inlist.version >= 12245
+      'star_data'
+    else
+      'star'
+    end
+  end
+
   # these hold the names of the namelists as well as the locations of the
   # fortran files that define their controls as well as the defaults files
   # that define their default values and order in formatted inlists
@@ -129,7 +138,7 @@ class Inlist
   def self.add_star_job_defaults(verbose: false)
     config_namelist(
       namelist: :star_job,
-      source_files: File.join(ENV['MESA_DIR'], 'star', 'private',
+      source_files: File.join(ENV['MESA_DIR'], star_or_star_data, 'private',
                               'star_job_controls.inc'),
       defaults_file: File.join(ENV['MESA_DIR'], 'star', 'defaults',
                                'star_job.defaults'),
@@ -141,7 +150,7 @@ class Inlist
   def self.add_controls_defaults(verbose: false)
     config_namelist(
       namelist: :controls,
-      source_files: [File.join(ENV['MESA_DIR'], 'star', 'private',
+      source_files: [File.join(ENV['MESA_DIR'], star_or_star_data, 'private',
                                'star_controls.inc'),
                      File.join(ENV['MESA_DIR'], 'star', 'private',
                                "ctrls_io.#{f_end}")],
@@ -155,7 +164,7 @@ class Inlist
   def self.add_pgstar_defaults(verbose: false)
     config_namelist(
       namelist: :pgstar,
-      source_files: File.join(ENV['MESA_DIR'], 'star', 'private',
+      source_files: File.join(ENV['MESA_DIR'], star_or_star_data, 'private',
                               'pgstar_controls.inc'),
       defaults_file: File.join(ENV['MESA_DIR'], 'star', 'defaults',
                                'pgstar.defaults'),
