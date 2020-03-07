@@ -1,8 +1,8 @@
 Gem::Specification.new do |s|
   s.name = 'mesa_script'
-  s.version = '0.1.9'
+  s.version = '0.2.0'
   s.authors = ['William Wolf']
-  s.date = '2018-08-14'
+  s.date = '2020-03-07'
   s.description = 'MesaScript - a DSL for making dynamic inlists for the MESA '\
                   'stellar evolution code.'
   s.summary = <<-LONGDESC
@@ -17,9 +17,9 @@ Gem::Specification.new do |s|
     it will work on older (or newer!) versions. Any bugs or requests should be
     sent to the author, Bill Wolf, at wmwolf@physics.ucsb.edu.
   LONGDESC
-  s.email = 'wmwolf@asu.edu'
+  s.email = 'wolfwm@uwec.edu'
   s.files = ['README.md', 'lib/mesa_script.rb']
-  s.homepage = 'https://wmwolf.github.io'
+  s.homepage = 'https://billwolf.space/MesaScript/'
   s.has_rdoc = false
   s.bindir = 'bin'
   s.executables = ['inlist2mesascript']
