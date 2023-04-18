@@ -5,14 +5,20 @@ def namelist_sym(namelist)
 end
 
 class Inlist
+
+  # check if this version came from a github repository (newer than 15140)
+  def self.version_is_git?
+    File.exist?(File.join(ENV['MESA_DIR'], '.gitignore')) or File.exist?(File.join(ENV['MESA_DIR'], '.github'))
+  end
+
   # Get access to current MESA version.
   def self.version
-    IO.read(File.join(ENV['MESA_DIR'], 'data', 'version_number')).to_i
+    IO.read(File.join(ENV['MESA_DIR'], 'data', 'version_number')).sub('.', '').sub('r', '')
   end
 
   # Determine proper file suffix for fortran source
   def self.f_end
-    if Inlist.version >= 7380
+    if Inlist.version_is_git || Inlist.version.to_i >= 7380
       'f90'
     else
       'f'
@@ -21,7 +27,7 @@ class Inlist
 
   # Determine proper file location for star-related .inc files
   def self.star_or_star_data
-    if Inlist.version >= 12245
+    if Inlist.version_is_git || Inlist.version.to_i >= 12245
       'star_data'
     else
       'star'
@@ -160,6 +166,30 @@ class Inlist
     )
   end
 
+  # short hand for adding kap namelist using sensible defaults as of 22.11.1
+  def self.add_kap_defaults(verbose: false)
+    config_namelist(
+      namelist: :kap,
+      source_files: [File.join(ENV['MESA_DIR'], 'kap', 'private',
+                               "kap_ctrls_io.#{f_end}"),
+      defaults_file: File.join(ENV['MESA_DIR'], 'kap', 'defaults',
+                               'kap.defaults'),
+      verbose: verbose
+    )
+  end
+
+  # short hand for adding eos namelist using sensible defaults as of 22.11.1
+  def self.add_eos_defaults(verbose: false)
+    config_namelist(
+      namelist: :eos,
+      source_files: [File.join(ENV['MESA_DIR'], 'eos', 'private',
+                               "eos_ctrls_io.#{f_end}"),
+      defaults_file: File.join(ENV['MESA_DIR'], 'eos', 'defaults',
+                               'eos.defaults'),
+      verbose: verbose
+    )
+  end
+
   # short hand for adding pgstar namelist using sensible defaults as of 10108
   def self.add_pgstar_defaults(verbose: false)
     config_namelist(
@@ -204,6 +234,8 @@ class Inlist
     add_star_job_defaults
     add_controls_defaults
     add_pgstar_defaults
+    add_kap_defaults
+    add_eos_defaults
   end
 
   # quickly add both major namelists for binary module (binary_job and
