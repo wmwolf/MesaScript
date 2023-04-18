@@ -171,7 +171,7 @@ class Inlist
     config_namelist(
       namelist: :kap,
       source_files: [File.join(ENV['MESA_DIR'], 'kap', 'private',
-                               "kap_ctrls_io.#{f_end}"),
+                               "kap_ctrls_io.#{f_end}")],
       defaults_file: File.join(ENV['MESA_DIR'], 'kap', 'defaults',
                                'kap.defaults'),
       verbose: verbose
@@ -183,7 +183,7 @@ class Inlist
     config_namelist(
       namelist: :eos,
       source_files: [File.join(ENV['MESA_DIR'], 'eos', 'private',
-                               "eos_ctrls_io.#{f_end}"),
+                               "eos_ctrls_io.#{f_end}")],
       defaults_file: File.join(ENV['MESA_DIR'], 'eos', 'defaults',
                                'eos.defaults'),
       verbose: verbose
@@ -690,6 +690,7 @@ class Inlist
         line.split('::').map(&:strip)
       end
       pairs.each do |pair|
+        next if pair[0] == 'public'
         type = case pair[0]
                when /logical/ then :bool
                when /character/ then :string
@@ -697,7 +698,7 @@ class Inlist
                when /integer/ then :int
                when /type/ then :type
                else
-                 raise "Couldn't determine type of entry #{pair[0]} in " \
+                 raise "Couldn't determine type of entry \"#{pair[0]}\" in " \
                        "#{source_file}."
                end
         name_chars = pair[1].split('')
