@@ -18,7 +18,7 @@ class Inlist
 
   # Determine proper file suffix for fortran source
   def self.f_end
-    if Inlist.version_is_git || Inlist.version.to_i >= 7380
+    if Inlist.version_is_git? || Inlist.version.to_i >= 7380
       'f90'
     else
       'f'
@@ -27,7 +27,7 @@ class Inlist
 
   # Determine proper file location for star-related .inc files
   def self.star_or_star_data
-    if Inlist.version_is_git || Inlist.version.to_i >= 12245
+    if Inlist.version_is_git? || Inlist.version.to_i >= 12245
       'star_data'
     else
       'star'
@@ -232,10 +232,12 @@ class Inlist
   # and pgstar)
   def self.add_star_defaults
     add_star_job_defaults
+    if Inlist.version_is_git? || Inlist.version.to_i > 15140
+      add_kap_defaults
+      add_eos_defaults
+    end
     add_controls_defaults
     add_pgstar_defaults
-    add_kap_defaults
-    add_eos_defaults
   end
 
   # quickly add both major namelists for binary module (binary_job and
