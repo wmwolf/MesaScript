@@ -228,8 +228,8 @@ class Inlist
     )
   end
 
-  # quickly add all three major namelists for star module (star_job, controls,
-  # and pgstar)
+  # quickly add all five (three for older versions) major namelists for star
+  # module (star_job, controls, and pgstar)
   def self.add_star_defaults
     add_star_job_defaults
     if Inlist.version_is_git? || Inlist.version.to_i > 15140
