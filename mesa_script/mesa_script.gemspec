@@ -1,8 +1,8 @@
 Gem::Specification.new do |s|
   s.name = 'mesa_script'
-  s.version = '0.2.0'
+  s.version = '0.2.1'
   s.authors = ['William Wolf']
-  s.date = '2020-03-07'
+  s.date = '2023-04-18'
   s.description = 'MesaScript - a DSL for making dynamic inlists for the MESA '\
                   'stellar evolution code.'
   s.summary = <<-LONGDESC
@@ -13,9 +13,9 @@ Gem::Specification.new do |s|
     https://github.com/wmwolf/MesaScript
 
     This software requires a relatively modern installation of MESA (version >
-    5596). It has been tested on Ruby versions > 1.9, but there is no guarantee
-    it will work on older (or newer!) versions. Any bugs or requests should be
-    sent to the author, Bill Wolf, at wmwolf@physics.ucsb.edu.
+    5596). It has been tested on Ruby versions > 1.9 and up to 3.2, but there is
+    no guarantee it will work on older (or newer!) versions. Any bugs or
+    requests should be reported to the github repository.
   LONGDESC
   s.email = 'wolfwm@uwec.edu'
   s.files = ['README.md', 'lib/mesa_script.rb']
