@@ -33,7 +33,7 @@ masses.each do |mass|
     # separate.
     mass_change 1e-7
     load_saved_model true
-    saved_model_name "test_#{mass}.mod"
+    save_model_filename "test_#{mass}.mod"
 
     # Inlist methods are case-insensitive (in that lower-case is ALWAYS ok)
     # That is, method names can be invoked as they appear in the .inc or
@@ -41,6 +41,15 @@ masses.each do |mass|
     # invoked in all lower case. Other "spellings" will fail.
     relax_y true
 
+    if Inlist.namelists.include? :eos
+      use_PC false
+    end
+    
+    if Inlist.namelists.include? :kap
+      Zbase 0.02
+      use_Type2_opacities true
+    end
+    
     # No argument? no problem. The default is selected.
     use_ledoux_criterion
 
