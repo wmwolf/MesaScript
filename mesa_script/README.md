@@ -5,16 +5,20 @@ MesaScript
 In its current state, MesaScript requires MESA rev. 5596 or above. This is due
 to a sensitivity to where the `'.inc'` files are stored on earlier versions. If
 there is demand for MesaScript for earlier revisions, I will look into making
-it backward compatible. It has been updated to work in the `git` era (beyond
-version 15140), including conditionally adding the `&kap` and `&eos` namelists
-if they are present. It does not currently support `astero` inlists out of the
-box.
+it backward compatible.
 
 ### The Short Short Version
 To get up and running fast, skip to installation, then try and use the included
 sample file, `sample.rb` (via running `ruby sample.rb` in the command line). The
 comments in `sample.rb` should get you started, especially if you have at least
 a little Ruby know-how.
+
+### Citing MesaScirpt
+MesaScript has a DOI: [![DOI](https://zenodo.org/badge/14879605.svg)](https://zenodo.org/badge/latestdoi/14879605).
+If your work made significant use of MesaScript, please kindly cite it in your
+acknowledgements or your software section. It is stylized as "MesaScript", and
+I typically wrap it in `\texttt{}` in LaTeX.
+
 ### What is MesaScript?
 Lightweight, Ruby-based language that provides a powerful way to make inlists
 for MESA projects. Really, MesaScript is a DSL (domain-specific language) built
@@ -35,48 +39,50 @@ languages whenever I can.
 There are other benefits, too. MesaScript automatically checks your input to
 make sure that the types of arguments you give for various namelist items match
 what is expected, and the resulting inlist is neatly formatted and sensibly
-ordered. You can also easily convert an existing inlist to MesaScript for
-editing and further generalization. In general, *writing an inlist in*
-*MesaScript is no more difficult than writing a normal inlist, but you have far*
-*more flexibility*. So why not give it a try?
+ordered. If you misspell a command, modern versions of ruby will even suggest
+valid replacements for you at runtime. You can also easily convert an existing
+inlist to MesaScript for editing and further generalization. In general,
+*writing an inlist in* *MesaScript is no more difficult than writing a normal
+inlist, but you have far* *more flexibility*. So why not give it a try?
 
 If you know a little Ruby (want to learn?
-[Try Ruby here!](http://tryruby.org/levels/1/challenges/0)), the possibilities
+[Try Ruby here!](http://tryruby.org/)), the possibilities
 are pretty wide open. You could easily make a script that starts with a given
 set of parameters, run MESA star, then use the output of that run to dictate a
 new inlist and run, creating a chain (maybe a MESA root find of sorts).
 
 ### Installation
 MesaScript is now available as a gem! Assuming you have the `gem` command up
-and running (you probably do, but if not, check out 
+and running (you probably do, but if not, check out
 [RubyGems](https://rubygems.org) to get it up and running). Simply run
-
-    gem install mesa_script
-
+```bash
+gem install mesa_script
+```
 and you should be good to go. You'll be able to include MesaScript in your
-ruby files with `require mesa_script`, and `inlist2mesascript` will be 
+ruby files with `require 'mesa_script'`, and `inlist2mesascript` will be
 available to you from the command line to convert your existing inlists to
 mesascript files.
 
-If you want to edit the source or don't want to use rubygems, clone or otherwise download the repository somewhere to your home directory with
-
-    git clone https://github.com/wmwolf/MesaScript.git ~/MesaScript
-
+If you want to edit the source or don't want to use rubygems, clone or
+otherwise download the repository somewhere to your home directory with
+```bash
+git clone https://github.com/wmwolf/MesaScript.git ~/MesaScript
+```
 or somewhere else to your liking.
 
 Then, either copy the file `mesa_script.rb` to somewhere along Ruby's path, or
 set up another stand-in file that points to your `mesa_script.rb` file in
 Ruby's path. To find Ruby's path, type
-
-    ruby -e 'puts $:'
-
+```bash
+ruby -e 'puts $:'
+```
 in your terminal. If Ruby is properly configured, as it is on most modern Unix
 systems, you should see a list of possible directories. Either copy
 `mesa_script.rb` there or do what I do and make a new file called
 `mesa_script.rb` there and have it just be
-
-    require '/PATH/TO/YOUR/CLONED/REPOSITORY/mesa_script.rb'
-
+```ruby
+require '/PATH/TO/YOUR/CLONED/REPOSITORY/mesa_script.rb'
+```
 This way, if you later update your repo via `git pull`, you won't need to copy
 `mesa_script.rb` again. Also, if you'd like to use the included (optional)
 `inlist2mesascript` tool, copy that to somewhere along you system's path (
@@ -98,19 +104,20 @@ independent).
 The `mesa_script.rb` file defines just one class, Inlist, which we'll interact
 with primarily through one class method, `make_inlist`. Just put the following
 in a file to make a blank inlist:
+```ruby
+require 'mesa_script'
 
-    require 'mesa_script'
-
-    Inlist.make_inlist('babys_first_inlist') {
-      # inlist commands go here
-    }
-
+Inlist.make_inlist('babys_first_inlist') {
+  # inlist commands go here
+}
+```
 This creates a file called `babys_first_inlist` that will be pretty
-boring. It will create three namelists (the usual `star_job`, `controls`, and
-`pgstar`) and leaves them blank inside, which is a perfectly acceptable inlist
-for MESA to use, since it has defaults available. Now let's say you put this in
-a file called `my_first_mesascript.rb` (`.rb` is the extension for Ruby files,
-by the way). Then to actually generate the inlist, enter
+boring. It will create five namelists (the usual `star_job`, `eos`, `kap`,
+`controls`, and `pgstar`, though `kap` and `eos` will be excluded for older
+version of `MESA`) and leaves them blank inside, which is a perfectly acceptable
+inlist for MESA to use, since it has defaults available. Now let's say you put
+this in a file called `my_first_mesascript.rb` (`.rb` is the extension for Ruby
+files, by the way). Then to actually generate the inlist, enter
 `ruby my_first_mesascript.rb` at the command line and watch in awe as
 `babys_first_inlist` pops into existence. You've created an inlist using
 MesaScript, and you did so using fewer lines than it would have taken to
@@ -128,19 +135,19 @@ As an example, let's say we want to set the initial mass of our star to 2.0
 solar masses. The inlist command for this is `initial_mass`. In a regular
 inlist file, we would need to put this in the proper namelist, `&controls` as
 `initial_mass = 2.0`. In MesaScript, there are two ways to do this:
-
-    initial_mass 2.0    # this
-    initial_mass(2.0)   # is the same as this
-
+```ruby
+initial_mass 2.0    # this
+initial_mass(2.0)   # is the same as this
+```
 In Ruby, parentheses are optional for method calls, so either way is
 acceptable. Note that unlike in normal inlists, MesaScript doesn't care about
 the namelist this attribute belongs to. It'll figure it out on its own and
 place it appropriately.
 
 **WARNING**: You *cannot* use the standard inlist notation of
-
-    initial_mass = 2.0  # DON'T EVER DO THIS EVER EVER EVER
-
+```ruby
+initial_mass = 2.0  # DON'T EVER DO THIS EVER EVER EVER
+```
 it will *not* throw an error, because it will simply set a new Ruby variable
 called `initial_mass`. (For the person curious as to why I didn't program this
 functionality in, google something like "instance_eval setter method" to
@@ -149,17 +156,18 @@ discover what took me too long to figure out.)
 #### Array Assignments
 As an example, let's say we want to set a lower limit on a certain central
 abundance as a stopping condition. Then we would, at the minimum, need to set
-the inlist command `xa_central_lower_limit_species(1) = 'h1'`, for example. In MesaScript, there are three ways to do this:
-
-    xa_central_lower_limit_species[1] = 'h1'    # These are
-    xa_central_lower_limit_species(1, 'h1')     # all the
-    xa_central_lower_limit_species 1, 'h1'      # same
-
+the inlist command `xa_central_lower_limit_species(1) = 'h1'`, for example. In
+MesaScript, there are three ways to do this:
+```ruby
+xa_central_lower_limit_species[1] = 'h1'    # These are
+xa_central_lower_limit_species(1, 'h1')     # all the
+xa_central_lower_limit_species 1, 'h1'      # same
+```
 **WARNING**: Again, the standard inlist notation for array assignment will not
 work:
-
-    xa_central_lower_limit_species(1) = 'h1'    # THIS ENDS IN SADNESS
-
+```ruby
+xa_central_lower_limit_species(1) = 'h1'    # THIS ENDS IN SADNESS
+```
 I tried to program this functionality in, and the kind people at
 [StackOverflow](http://stackoverflow.com/questions/21036873/how-do-i-write-a-method-to-edit-an-array-hash-using-parentheses-instead-of-squar/21044781?noredirect=1#21044781) kindly but firmly convinced me it was utterly impossible to to with Ruby without writing a parser of my own. Just stick to the bracket syntax or the less natural parentheses/space notations.
 
@@ -175,12 +183,12 @@ following: booleans, strings, floats, or integers.
 single quotes are more "literal" than double quotes. Double quotes allow for
 escaped characters and string interpolation using the `#{...}` notation, which
 might be useful. For instance,
-
-    my_mass = 2.0
-    initial_mass = my_mass
-    save_model true
-    save_model_filename "my_star_#{my_mass}.mod"
-
+```ruby
+my_mass = 2.0
+initial_mass my_mass
+save_model true
+save_model_filename "my_star_#{my_mass}.mod"
+```
 will produce (among other things) the line
 `save_model_filename = 'my_star_2.0.mod'` in the resulting inlist. Note also the
 utility of having the initial mass and the save file name being dependent on a
@@ -194,14 +202,16 @@ entire number, though you can use underscores to make it clearer, e.g.
 **Floats** use an "e", and never a "d" for an exponential indicator, e.g.
 `6.02e23`. Ruby floats have arbitrary precision, so there are no doubles.
 
-Finally, if a particular command is giving you trouble, you can always just encase what you *want* it to be (i.e. in Fortran lingo) in quotes (obviously this does nothing useful if MesaScript is expecting a string). For example
-
-    mass_change 1e-7
-
+Finally, if a particular command is giving you trouble, you can always just
+encase what you *want* it to be (i.e. in Fortran lingo) in quotes (obviously
+this does nothing useful if MesaScript is expecting a string). For example
+```ruby
+mass_change 1e-7
+```
 will have the same effect as
-
-    mass_change '1d-7'
-
+```ruby
+mass_change '1d-7'
+```
 since MesaScript will not try to parse `'1d-7'`. It was expecting a float, but
 since it got a string, it assumes you know better than it.
 
@@ -226,39 +236,63 @@ Are you still reading this? Well, you must want to do more.
 
 ### Using Custom Namelists
 You can also make MesaScript know about additional namelists (or forget about
-the standard three). After requiring the `mesa_script` file, you can change the
+the standard five/three). After requiring the `mesa_script` file, you can change the
 namelists it cares about via the following commands (obviously subbing out any
 string containing `'namelist1'` or `'namelist2'` with your own appropriate
 strings):
+```ruby
+require 'mesa_script'
 
-    require 'mesa_script'
+Inlist.config_namelist(
+    namelist: 'namelist1',
+    source_files: 'path/to/my/module/private/namelist1_controls.inc',
+    default_file: 'path/to/my/module/defaults/namelist1.defaults')
+)
+```
+Source files are the files where the different controls are defined. For
+example, see `$MESA_DIR/star/private/star_job_controls.inc` for the file for
+`star_job`. Note that there may be more than one of these that need to be read
+in, as is the case with `controls` (`star/private/star_controls.inc` and
+`star/private/ctrls_io.f90`). In those cases, you can set `source_files` to an
+array. `default_files` should just be the defaults file you are used to
+referencing, like `star/defaults/star_job.defaults` for `star_job`.
 
-    Inlist.namelists = ['namelist1', 'namelist2'] # all namelists you want
 
-    # Then indicate the name of the '.inc' files like star/private/star_controls.inc
-    Inlist.nt_files  = {
-      'namelist1' => 'namelist1_controls.inc',
-      'namelist2' => 'namelist2_controls.inc'
-    }
-    # Then indicate the names of the '.defaults' files like those in star/defaults
-    Inlist.d_files = {
-      'namelist1' => 'namelist1.defaults,
-      'namelist2' => 'namelist2.defaults
-    }
-    # Then specify the paths to the files
-    Inlist.nt_paths ={
-      'namelist1' => '/path/to/namelist1_controls.inc',
-      'namelist2' => '/path/to/namelist2_controls.inc'
-    }
+After this line, any subsequent calls to `Inlist` will know _only_ about
+`namelist1`. You could make subsequent similar calls for the more common
+namelists, but there are shortcuts. To get the main `star` namelists, just do
 
-That *should* set things up to work with custom namelists, so long as the
-`.inc` and `.defaults` files are formatted more or less the same as the "stock"
-ones.
+```ruby
+Inlist.add_star_job_defaults
+Inlist.add_kap_defaults
+Inlist.add_eos_defaults
+Inlist.add_controls_defaults
+Inlist.add_pgstar_defaults
+```
+or even more succinctly,
+```ruby
+Inlist.add_star_defaults
+```
+which does all five in one go (but it skips `eos` and `kap` for older versions
+of `MESA`). The most common bonus namelists you might also
+want are the `binary_job` and `binary_controls` namelists, which have their own
+shortcuts as well: `Inlist.add_binary_job` and
+`Inlist.add_binary_controls_defaults` (and the more succinct
+`Inlist.add_binary_defaults` to do both). Note, though, that at least one
+command (`log_directory`) is present in both `controls` and `binary_controls`,
+so MesaScript will fail to execute one of them as it will only register the
+control as belonging to one namelist. There is no guarantee that more controls
+won't have name collisions in the future other than isolating which namelists
+are read in.
+
+If you don't specify any extra namelists (99% of use cases), it just defaults
+to reading in the five/three main `star` namelists.
 
 ### Accessing Current Values and Displaying Default Values
 Perhaps you want to display a default value in your inlist, but not actually
 change it. Well, most of the assignment methods mentioned earlier
-are also getter methods. I haven't mentioned how these methods actually work, so I'll do so now since you're still reading this manifesto.
+are also getter methods. I haven't mentioned how these methods actually work,
+so I'll do so now since you're still reading this manifesto.
 
 These methods first flag the name of the data category for going into the
 inlist. Then if a new value is supplied to them, it changes the value in the
@@ -272,17 +306,17 @@ it, or the current/default value if you don't set one).
 So if you want to access any scalar, just call its method without an argument.
 Not only does this return the default value, but it also flags the category for
 inclusion in the inlist so
-
+```ruby
     save_this_value = initial_mass
-
+```
 will set `save_this_value` to `1.0` (the default value in `controls.defaults`)
 unless you had already assigned another value, in which case that would be saved
 instead. Additionally, `initial_mass = 1.0` will appear in the final inlist,
 even though we didn't give `initial_mass` a new value. In fact, we could just
 have a line like
-
+```ruby
     initial_z
-
+```
 that neither uses the return value nor changes the stored value. This will just
 flag `initial_z` for being put in the final inlist. Note that there is
 currently no way to unflag an inlist item.
@@ -290,12 +324,12 @@ currently no way to unflag an inlist item.
 For arrays, things work like you might expect. Any time any one of the versions
 of the array methods are called, that entire array category is staged for
 inclusion in the inlist. For example, you could do any of the following:
-
+```ruby
     xa_central_lower_limit      # returns a hash of values
     xa_central_lower_limit[1]   # returns the value associated with 1 in the hash
     xa_central_lower_limit(1)   # same as above
     xa_central_lower_limit 1    # same as above
-
+```
 Note that these array methods, as indicated, point to hashes (not arrays) of
 values. So `xa_central_lower_limit_species[1] = 'h1'` would return
 `{1 => 'h1'}`.
