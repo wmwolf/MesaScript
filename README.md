@@ -53,17 +53,17 @@ new inlist and run, creating a chain (maybe a MESA root find of sorts).
 
 ### Installation
 MesaScript is now available as a gem! Assuming you have the `gem` command up
-and running (you probably do, but if not, check out 
+and running (you probably do, but if not, check out
 [RubyGems](https://rubygems.org) to get it up and running). Simply run
 ```bash
 gem install mesa_script
 ```
 and you should be good to go. You'll be able to include MesaScript in your
-ruby files with `require 'mesa_script'`, and `inlist2mesascript` will be 
+ruby files with `require 'mesa_script'`, and `inlist2mesascript` will be
 available to you from the command line to convert your existing inlists to
 mesascript files.
 
-If you want to edit the source or don't want to use rubygems, clone or 
+If you want to edit the source or don't want to use rubygems, clone or
 otherwise download the repository somewhere to your home directory with
 ```bash
 git clone https://github.com/wmwolf/MesaScript.git ~/MesaScript
@@ -112,11 +112,12 @@ Inlist.make_inlist('babys_first_inlist') {
 }
 ```
 This creates a file called `babys_first_inlist` that will be pretty
-boring. It will create three namelists (the usual `star_job`, `controls`, and
-`pgstar`) and leaves them blank inside, which is a perfectly acceptable inlist
-for MESA to use, since it has defaults available. Now let's say you put this in
-a file called `my_first_mesascript.rb` (`.rb` is the extension for Ruby files,
-by the way). Then to actually generate the inlist, enter
+boring. It will create five namelists (the usual `star_job`, `eos`, `kap`,
+`controls`, and `pgstar`, though `kap` and `eos` will be excluded for older
+version of `MESA`) and leaves them blank inside, which is a perfectly acceptable
+inlist for MESA to use, since it has defaults available. Now let's say you put
+this in a file called `my_first_mesascript.rb` (`.rb` is the extension for Ruby
+files, by the way). Then to actually generate the inlist, enter
 `ruby my_first_mesascript.rb` at the command line and watch in awe as
 `babys_first_inlist` pops into existence. You've created an inlist using
 MesaScript, and you did so using fewer lines than it would have taken to
@@ -184,7 +185,7 @@ escaped characters and string interpolation using the `#{...}` notation, which
 might be useful. For instance,
 ```ruby
 my_mass = 2.0
-initial_mass = my_mass
+initial_mass my_mass
 save_model true
 save_model_filename "my_star_#{my_mass}.mod"
 ```
@@ -235,7 +236,7 @@ Are you still reading this? Well, you must want to do more.
 
 ### Using Custom Namelists
 You can also make MesaScript know about additional namelists (or forget about
-the standard three). After requiring the `mesa_script` file, you can change the
+the standard five/three). After requiring the `mesa_script` file, you can change the
 namelists it cares about via the following commands (obviously subbing out any
 string containing `'namelist1'` or `'namelist2'` with your own appropriate
 strings):
@@ -251,9 +252,9 @@ Inlist.config_namelist(
 Source files are the files where the different controls are defined. For
 example, see `$MESA_DIR/star/private/star_job_controls.inc` for the file for
 `star_job`. Note that there may be more than one of these that need to be read
-in, as is the case with `controls` (`star/private/star_controls.inc` and 
+in, as is the case with `controls` (`star/private/star_controls.inc` and
 `star/private/ctrls_io.f90`). In those cases, you can set `source_files` to an
-array. `default_files` should just be the defaults file you are used to 
+array. `default_files` should just be the defaults file you are used to
 referencing, like `star/defaults/star_job.defaults` for `star_job`.
 
 
@@ -263,6 +264,8 @@ namelists, but there are shortcuts. To get the main `star` namelists, just do
 
 ```ruby
 Inlist.add_star_job_defaults
+Inlist.add_kap_defaults
+Inlist.add_eos_defaults
 Inlist.add_controls_defaults
 Inlist.add_pgstar_defaults
 ```
@@ -270,9 +273,10 @@ or even more succinctly,
 ```ruby
 Inlist.add_star_defaults
 ```
-which does all three in one go. The most common bonus namelists you might also
+which does all five in one go (but it skips `eos` and `kap` for older versions
+of `MESA`). The most common bonus namelists you might also
 want are the `binary_job` and `binary_controls` namelists, which have their own
-shortcuts as well: `Inlist.add_binary_job` and 
+shortcuts as well: `Inlist.add_binary_job` and
 `Inlist.add_binary_controls_defaults` (and the more succinct
 `Inlist.add_binary_defaults` to do both). Note, though, that at least one
 command (`log_directory`) is present in both `controls` and `binary_controls`,
@@ -282,12 +286,13 @@ won't have name collisions in the future other than isolating which namelists
 are read in.
 
 If you don't specify any extra namelists (99% of use cases), it just defaults
-to reading in the three main `star` namelists.
+to reading in the five/three main `star` namelists.
 
 ### Accessing Current Values and Displaying Default Values
 Perhaps you want to display a default value in your inlist, but not actually
 change it. Well, most of the assignment methods mentioned earlier
-are also getter methods. I haven't mentioned how these methods actually work, so I'll do so now since you're still reading this manifesto.
+are also getter methods. I haven't mentioned how these methods actually work,
+so I'll do so now since you're still reading this manifesto.
 
 These methods first flag the name of the data category for going into the
 inlist. Then if a new value is supplied to them, it changes the value in the
